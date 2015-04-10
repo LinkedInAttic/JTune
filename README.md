@@ -212,7 +212,7 @@ Q: What versions of Java does this support?
 A: JTune works with Java versions 6-8.
 
 Q: What JVM options should I have turned on to property use this tool?
-A: You should have the following enabled: -XX:+PrintTenuringDistribution,
+A: You should have the following enabled: -Xloggc, -XX:+PrintTenuringDistribution,
    -XX:+PrintGCDetails, and -XX:+PrintGCDateStamps
 
 Q: Can it tune the G1 GC?
