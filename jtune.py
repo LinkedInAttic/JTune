@@ -1247,8 +1247,8 @@ def get_proc_info(pid=None):
                 break
 
         for line in liverun("{0}/java -version".format(details['java_path'])):
-            if "Runtime Environment" in line:
-                line = line.strip().replace("(", "").replace(")", "")
+            if "java version" in line:
+                line = line.strip().replace("\"", "")
                 fields = line.split()
 
                 details['java_build_version'] = fields[-1]
