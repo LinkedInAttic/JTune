@@ -1203,7 +1203,7 @@ def get_proc_info(pid=None):
             for blob in _file:
                 for line in blob.split("\0"):
                     if "-Xloggc" in line:
-                        gc_path = line.split(":")[1]
+                        gc_path = line.split(":", 1)[1]
 
                         if gc_path.startswith("/"):
                             details['gc_log_path'] = gc_path
