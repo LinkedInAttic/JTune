@@ -211,7 +211,7 @@ A: You should run it as the user of the Java process you want to analyze (or roo
 Q: What versions of Java does this support?
 A: JTune works with Java versions 6-8.
 
-Q: What JVM options should I have turned on to property use this tool?
+Q: What JVM options should I have turned on to properly use this tool?
 A: You should have the following enabled: -Xloggc, -XX:+PrintTenuringDistribution,
    -XX:+PrintGCDetails, and -XX:+PrintGCDateStamps
 
