@@ -41,7 +41,11 @@ import time
 from decimal import Decimal
 from itertools import izip_longest
 
-locale.setlocale(locale.LC_ALL, 'en_US')
+try:
+    locale.setlocale(locale.LC_ALL, 'en_US')
+except locale.Error:
+    # Try UTF8 variant before failing
+    locale.setlocale(locale.LC_ALL, 'en_US.utf8')
 
 handler = logging.StreamHandler()
 handler.setFormatter(
@@ -1213,6 +1217,9 @@ def get_proc_info(pid=None):
                     elif "/bin/java" in line:
                         details['java_path'] = os.path.dirname(line)
 
+        if 'java_path' not in details:
+            details['java_path'] = ''.join(liverun("which java")).strip().replace("/java", "")
+
         with open("/proc/uptime".format(pid), "r") as _file:
             for line in _file:
                 details['sys_uptime_seconds'] = Decimal(line.split()[0])
@@ -1240,8 +1247,8 @@ def get_proc_info(pid=None):
                 break
 
         for line in liverun("{0}/java -version".format(details['java_path'])):
-            if "Runtime Environment" in line:
-                line = line.strip().replace("(", "").replace(")", "")
+            if "java version" in line:
+                line = line.strip().replace("\"", "")
                 fields = line.split()
 
                 details['java_build_version'] = fields[-1]
