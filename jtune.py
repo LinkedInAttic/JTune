@@ -41,7 +41,11 @@ import time
 from decimal import Decimal
 from itertools import izip_longest
 
-locale.setlocale(locale.LC_ALL, 'en_US')
+try:
+    locale.setlocale(locale.LC_ALL, 'en_US')
+except locale.Error:
+    # Try UTF8 variant before failing
+    locale.setlocale(locale.LC_ALL, 'en_US.utf8')
 
 handler = logging.StreamHandler()
 handler.setFormatter(
