@@ -1213,6 +1213,9 @@ def get_proc_info(pid=None):
                     elif "/bin/java" in line:
                         details['java_path'] = os.path.dirname(line)
 
+        if 'java_path' not in details:
+            details['java_path'] = ''.join(liverun("which java")).strip().replace("/java", "")
+
         with open("/proc/uptime".format(pid), "r") as _file:
             for line in _file:
                 details['sys_uptime_seconds'] = Decimal(line.split()[0])
