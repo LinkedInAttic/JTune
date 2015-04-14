@@ -1199,6 +1199,7 @@ def get_proc_info(pid=None):
     try:
         cpu_ticks_per_sec = int(os.sysconf(os.sysconf_names['SC_CLK_TCK']))
         bytes_per_page = resource.getpagesize()
+        details['gc_file_rotation'] = False
 
         for line in liverun("readlink /proc/{0}/cwd".format(pid)):
             details['proc_cwd'] = line.strip()
@@ -1207,7 +1208,7 @@ def get_proc_info(pid=None):
             for blob in _file:
                 for line in blob.split("\0"):
                     if "-Xloggc" in line:
-                        gc_path = line.split(":")[1]
+                        gc_path = line.split(":", 1)[1]
 
                         if gc_path.startswith("/"):
                             details['gc_log_path'] = gc_path
@@ -1216,6 +1217,8 @@ def get_proc_info(pid=None):
 
                     elif "/bin/java" in line:
                         details['java_path'] = os.path.dirname(line)
+                    elif "-XX:+UseGCLogFileRotation" in line:
+                        details['gc_file_rotation'] = True
 
         if 'java_path' not in details:
             details['java_path'] = ''.join(liverun("which java")).strip().replace("/java", "")
@@ -1752,6 +1755,38 @@ def _at_exit(raw_gc_log=None, jmap_data=None, jstat_data=None,
     _run_analysis(gc_data, jmap_data, jstat_data, proc_details, replay_file,
                   optimized_for_ygcs_rate)
 
+def get_rotated_log_file(gc_log_file):
+    """Function will scan existing log files to determine latest rotated log, if none found will return
+       non rotated file name.
+    """
+    log_number = 0
+    while os.path.isfile("{0}.{1}".format(gc_log_file, log_number)):
+        log_number += 1
+
+    if log_number:
+        gc_log_file = "{0}.{1}".format(gc_log_file, (log_number - 1))
+    else:
+        logger.debug("\n".join(
+            textwrap.wrap(
+                "Was not able to find a rotated GC log for this process, defaulting to gc log from process.",
+                textwrap_offset)))
+
+    return gc_log_file
+
+def get_gc_log_file(procdetails):
+    gc_log_file = procdetails['gc_log_path']
+
+    if not gc_log_file:
+        logger.error("\n".join(
+            textwrap.wrap(
+                "I was not able to find a GC log for this process. Is the instance up?",
+                textwrap_offset)))
+        sys.exit(1)
+
+    if procdetails['gc_file_rotation']:
+        return get_rotated_log_file(gc_log_file)
+    else:
+        return gc_log_file
 
 def get_jmap_data(pid=None, procdetails=None):
     """Function that runs jmap, only needed b/c jmap may not start, and this
@@ -1868,16 +1903,7 @@ if __name__ == "__main__":
                 "I was not able to get the process data for pid {0}. Exiting.".format(cmd_args.pid))
             sys.exit(1)
 
-        ###########################################
-        # Start the gc log watching in a subprocess
-        gc_log_file = proc_details['gc_log_path']
-
-        if not gc_log_file:
-            logger.error("\n".join(
-                textwrap.wrap(
-                    "I was not able to find a GC log for this process. Is the instance up?",
-                    textwrap_offset)))
-            sys.exit(1)
+        gc_log_file = get_gc_log_file(proc_details)
 
         ####################################################
         # Get the file offset before starting jstat, so
