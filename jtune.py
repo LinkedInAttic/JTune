@@ -1533,7 +1533,7 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None,
                     combined_survivors = True
                 else:
                     logger.error(
-                        "Looks like you're running the G1 collector. This tool unfortunately doesn't currently support G1 analysis.")
+                        "Looks like you're not running with the CMS garbage collector. You can enable this option by setting your JVM arguments to use '-XX:+UseConcMarkSweepGC'.")
                     sys.exit(1)
 
                 if not field_widths:
