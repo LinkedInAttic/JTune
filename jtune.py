@@ -407,6 +407,9 @@ def reduce_k(size=None, precision=2, short_form=True, _place_holder=0):
     short_form -- (true/false). Use 'K' instead of 'KiB', etc.
     """
 
+    if not isinstance(size, Decimal):
+        size = Decimal(str(size))
+
     # You know.. just in case we ever get to a yottabyte
     if short_form:
         iec_scale = ['K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
