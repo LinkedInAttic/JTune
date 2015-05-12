@@ -1914,7 +1914,7 @@ if __name__ == "__main__":
 
             if details['min_heap_size'] != details['max_heap_size']:
                 logger.error(
-                    "It looks like either you didn't specify your min and max heap size (-Xms & -Xmx respecively), or they are set to two different sizes. They need to be set to the same for jtune.py to work properly. Exiting.")
+                    "It looks like either you didn't specify your min and max heap size (-Xms & -Xmx respectively), or they are set to two different sizes. They need to be set to the same for jtune.py to work properly. Exiting.")
                 sys.exit(1)
 
         except (TypeError, KeyError):
