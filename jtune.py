@@ -772,7 +772,7 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None,
     display("\n")
     display("* A copy of the critical data used to generate this report is stored\n")
     display(
-        "  in /tmp/jpulse_data-{0}.bin.bz2. Please copy this to your homedir if you\n".format(user))
+        "  in /tmp/jtune_data-{0}.bin.bz2. Please copy this to your homedir if you\n".format(user))
     display("  want to save/analyze this further.\n")
 
 
@@ -932,8 +932,11 @@ def _show_recommendations(young_gc_times=None, full_gc_times=None,
 
     ygc_stdev = stdev(percentile(young_gc_times, ygc_pctile))
     ygc_mean_ms = float(max(percentile(young_gc_times, ygc_pctile)))
-    curr_ng_size = jmap_data['NewSize']
-    curr_og_size = jmap_data['OldSize']
+
+    curr_ng_size = jmap_data['NewSize'] / 1024
+    eden_size = (curr_ng_size * jmap_data['SurvivorRatio']) / (2 + jmap_data['SurvivorRatio'])
+    survivor_size = eden_size * (1/jmap_data['SurvivorRatio'])
+    curr_og_size = (jmap_data['MaxHeapSize'] / 1024) - eden_size - survivor_size
 
     if "PermSize" in jmap_data:
         curr_pg_ms_size = jmap_data['PermSize']
@@ -1133,10 +1136,10 @@ def _show_recommendations(young_gc_times=None, full_gc_times=None,
 
     # KiB -> B
     max_og_rate = float(_max(percentile(og_rates, pct_number))) * 1024.0
-    oldgen_offset = jmap_data['OldSize'] - (float(_max(yg_alloc_rates)) * max_cms_time) - (
+    oldgen_offset = curr_og_size - (float(_max(yg_alloc_rates)) * max_cms_time) - (
     max_cms_time * max_og_rate)
     occ_fraction = math.floor(
-        (float(oldgen_offset) / jmap_data['OldSize']) * 100)
+        (float(oldgen_offset) / curr_og_size) * 100)
 
     display("\n".join(textwrap.wrap(
         "- With a max {0} percentile OG promotion rate of {1}/s, and the max CMS sweep time of {2}s, you should not have a occupancy fraction any higher than {3:0.0f}.".format(
@@ -1220,8 +1223,15 @@ def get_proc_info(pid=None):
 
                     elif "/bin/java" in line:
                         details['java_path'] = os.path.dirname(line)
+
                     elif "-XX:+UseGCLogFileRotation" in line:
                         details['gc_file_rotation'] = True
+
+                    elif "-Xms" in line:
+                        details['min_heap_size'] = line.split("ms")[1]
+
+                    elif "-Xmx" in line:
+                        details['max_heap_size'] = line.split("mx")[1]
 
         if 'java_path' not in details:
             details['java_path'] = ''.join(liverun("which java")).strip().replace("/java", "")
@@ -1836,8 +1846,8 @@ if __name__ == "__main__":
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-r', '--replay', dest="replay_file",
-                       const="/tmp/jpulse_data-{0}.bin.bz2".format(user),
-                       help="Replay a previously saved default is /tmp/jpulse_data-{0}.bin.bz2 file".format(
+                       const="/tmp/jtune_data-{0}.bin.bz2".format(user),
+                       help="Replay a previously saved default is /tmp/jtune_data-{0}.bin.bz2 file".format(
                            user),
                        metavar="FILE", nargs="?", default=None)
     group.add_argument('-p', '--pid', help='Which java PID should I attach to', type=int)
@@ -1901,6 +1911,12 @@ if __name__ == "__main__":
         try:
             proc_details = get_proc_info(cmd_args.pid)
             java_path, proc_uptime = proc_details['java_path'], proc_details['proc_uptime_seconds']
+
+            if details['min_heap_size'] != details['max_heap_size']:
+                logger.error(
+                    "It looks like either you didn't specify your min and max heap size (-Xms & -Xmx respecively), or they are set to two different sizes. They need to be set to the same for jtune.py to work properly. Exiting.")
+                sys.exit(1)
+
         except (TypeError, KeyError):
             logger.error(
                 "I was not able to get the process data for pid {0}. Exiting.".format(cmd_args.pid))
@@ -1924,16 +1940,18 @@ if __name__ == "__main__":
     #####################################################
     # Keep the last dump of data in case there's an issue
     try:
-        with open("/tmp/jpulse_data-{0}.bin.bz2".format(user), "wb") as _file:
-            os.chmod("/tmp/jpulse_data-{0}.bin.bz2".format(user), 0666)
+        with open("/tmp/jtune_data-{0}.bin.bz2".format(user), "wb") as _file:
+            os.chmod("/tmp/jtune_data-{0}.bin.bz2".format(user), 0666)
             _file.write(
                 pickle.dumps((proc_details, jstat_data, display_output, jmap_data, raw_gc_log_data),
                              pickle.HIGHEST_PROTOCOL).encode('bz2'))
     except IOError as msg:
         logger.error("\n".join(textwrap.wrap(
-            "I was not able to write to /tmp/jpulse_data-{0}.bin.bz2 (no saving of state): {1}".format(
+            "I was not able to write to /tmp/jtune_data-{0}.bin.bz2 (no saving of state): {1}".format(
                 user, msg),
             textwrap_offset)))
+
+    _at_exit(raw_gc_log_data, jmap_data, jstat_data, proc_details, replay_file, optimized_for_ygcs_rate)
 
     atexit.register(_at_exit, raw_gc_log_data, jmap_data, jstat_data, proc_details, replay_file,
                     optimized_for_ygcs_rate)
