@@ -258,7 +258,7 @@ def reduce_seconds(secs=None):
     """
 
     # The nested  if statements keep it from being too long,
-    # by lopping off the non signifigant values
+    # by lopping off the non significant values
     retval = ""
 
     secs = int(float(secs))
@@ -381,7 +381,7 @@ def percentile(values=None, pct=None):
     """Return the percentile of a given values
 
     Keyword arguments:
-    values -- The list of numbers to be analyized
+    values -- The list of numbers to be analyzed
     pct -- The percentile (can be a float) to be used (100 == 100%,
       not 1 = 100%, etc.)
     """
@@ -517,7 +517,7 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None,
         except TypeError:
             display("\n".join(
                 textwrap.wrap(
-                    "Warning: Something's really wrong with this JVM; I couldn't get correct GC data for it.",
+                    "Warning: Something is really wrong with this JVM; I couldn't get correct GC data for it.",
                     textwrap_offset)))
             display("")
 
@@ -782,7 +782,7 @@ def _get_survivor_info(survivor_info=None, gc_data=None,
     """This looks at the survivor info data structure, and will return the max
     tenuring size, and max tenuring age that it feels is needed."""
 
-    # This is roughly how much larger the survivor space should be to couteract
+    # This is roughly how much larger the survivor space should be to counteract
     # the increase in the frequency of ygcs caused from the smaller NG size as
     # it pushes data into the survivor space more often. I don't need to change
     # the MaxTenuringThreshold as that is mostly constant depending on how
@@ -806,7 +806,7 @@ def _get_survivor_info(survivor_info=None, gc_data=None,
     # rate is a 15% survivor rate.
     survivor_watermark = 100 - survivor_problem_pct
 
-    # Get the max surivor age allowed per the jvm configuration
+    # Get the max survivor age allowed per the jvm configuration
     max_survivor_age = gc_data[-1].max_threshold
 
     # The survivor_info structure is the decrease in size for that
@@ -916,7 +916,7 @@ def _show_recommendations(young_gc_times=None, full_gc_times=None,
     ygc_stdev_goal = 5
 
     # YGC mean ms percentile - lop off the worst offenders
-    # I am chaging it instead of a mean of the 99p, doing a
+    # I am changing it instead of a mean of the 99p, doing a
     # max of the 75p; may be better
     ygc_pctile = 75
 
@@ -948,7 +948,7 @@ def _show_recommendations(young_gc_times=None, full_gc_times=None,
 
     #########################################################################################################
     # This is an estimate. Because we use CMS for FGCs, it's an iterative process, and while the CMS reset is
-    # happening, more ojbects are being tenured into OG. The best we can do (I think) is to find the minimum
+    # happening, more objects are being tenured into OG. The best we can do (I think) is to find the minimum
     # size of OU, and go from there. This is why it's super important to have more than 2 FGCs to look at.
     if "PU" in jstat_data:
         live_data_size_bytes = (_min(jstat_data['OU']) + _max(jstat_data['PU'])) * 1024
@@ -1718,7 +1718,7 @@ def _get_widths(jstat_data=None, short_fields=False):
 def _at_exit(raw_gc_log=None, jmap_data=None, jstat_data=None,
              proc_details=None, replay_file=None, optimized_for_ygcs_rate=None):
     """The exit function that is called when the user presses ctrl-c, or when it exits after X number
-    of jstat interations. It calls various functions to display useful information to the end-user."""
+    of jstat iterations. It calls various functions to display useful information to the end-user."""
 
     gc_data = list()
     raw_gc_data = list()
