@@ -757,7 +757,7 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None,
     display("~~~\n")
 
     display("\n")
-    display("* The allocation rate is the increase is usage before a GC done. Growth rate\n")
+    display("* The allocation rate is the increase in usage before a GC done. Growth rate\n")
     display("  is the increase in usage after a GC is done.\n")
 
     display("\n")
