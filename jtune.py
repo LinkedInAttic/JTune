@@ -38,6 +38,7 @@ import subprocess as sp
 import sys
 import textwrap
 import time
+import glob
 from decimal import Decimal
 from itertools import izip_longest
 
@@ -1281,8 +1282,28 @@ def get_proc_info(pid=None):
 
     return details
 
+def read_file(gc_log_queue, log_file, log_file_pos):
+    line_num = 0
+    print "reading gc log: {0}\n".format(log_file)
+    with open(log_file, "r") as _file:
+        _file.seek(log_file_pos)
 
-def process_gclog(log_file=None, log_file_pos=0):
+        for line in _file:
+            gc_log_queue.append(line)
+            line_num += 1
+    return line_num
+
+
+def read_additional_rotated_gc_files(gc_log_queue, log_file, gc_log_pattern, line_num):
+    new_log_file = get_next_rotated_log_file(gc_log_pattern, log_file)
+    if log_file == new_log_file:
+        return line_num
+    else:
+        print "log file was rotated; attempting to read next file: {0}\n".format(new_log_file)
+        line_num += read_file(gc_log_queue, new_log_file, 0)
+        return read_additional_rotated_gc_files(gc_log_queue, new_log_file, gc_log_pattern, line_num)
+
+def process_gclog(procdetails, log_file=None, log_file_pos=0):
     """Pretty basic function that iterates through a gc log, and returns a data
     structure of the log data.
 
@@ -1297,21 +1318,20 @@ def process_gclog(log_file=None, log_file_pos=0):
         line_num = 0
 
         print ""
-        print "* Reading gc.log file...",
+        print "* Reading gc.log file(s)...\n",
 
         current_size = os.stat(log_file).st_size
         if current_size < log_file_pos:
-            print "log file was truncated/rotated; reading from the start",
+            print "log file was truncated/rotated; reading from the start\n",
             log_file_pos = 0
 
         start_time = datetime.datetime.now()
 
-        with open(log_file, "r") as _file:
-            _file.seek(log_file_pos)
+        line_num += read_file(gc_log_queue, log_file, log_file_pos)
 
-            for line in _file:
-                gc_log_queue.append(line)
-                line_num += 1
+        if procdetails['gc_file_rotation']:
+            gc_log_pattern  = procdetails['gc_log_path']
+            line_num += read_additional_rotated_gc_files(gc_log_queue, log_file, gc_log_pattern)
 
         elapsed_time = sec_diff(start_time, datetime.datetime.now())
 
@@ -1714,7 +1734,6 @@ def _get_widths(jstat_data=None, short_fields=False):
 
     return widths
 
-
 def _at_exit(raw_gc_log=None, jmap_data=None, jstat_data=None,
              proc_details=None, replay_file=None, optimized_for_ygcs_rate=None):
     """The exit function that is called when the user presses ctrl-c, or when it exits after X number
@@ -1768,16 +1787,26 @@ def _at_exit(raw_gc_log=None, jmap_data=None, jstat_data=None,
     _run_analysis(gc_data, jmap_data, jstat_data, proc_details, replay_file,
                   optimized_for_ygcs_rate)
 
+def get_next_rotated_log_file(gc_log_pattern, current_log_file):
+    current_file_time = os.path.getmtime(current_log_file)
+    for file in get_sorted_gc_log_files(gc_log_pattern, False):
+        if os.path.getmtime(file) > current_file_time:
+            return file
+
+    return current_log_file
+
+def get_sorted_gc_log_files(gc_log_pattern, reverse=True):
+    files = glob.glob(gc_log_pattern + ".*")
+    files.sort(key=os.path.getmtime, reverse=reverse)
+    return files
+
 def get_rotated_log_file(gc_log_file):
     """Function will scan existing log files to determine latest rotated log, if none found will return
        non rotated file name.
     """
-    log_number = 0
-    while os.path.isfile("{0}.{1}".format(gc_log_file, log_number)):
-        log_number += 1
-
-    if log_number:
-        gc_log_file = "{0}.{1}".format(gc_log_file, (log_number - 1))
+    files = get_sorted_gc_log_files(gc_log_file)
+    if len(files) > 0:
+        gc_log_file = files[0]
     else:
         logger.debug("\n".join(
             textwrap.wrap(
@@ -1935,7 +1964,7 @@ if __name__ == "__main__":
                                cmd_args.stop_count, cmd_args.ygc_stop_count)
 
         # This basically hits after the user ctrl-c's
-        raw_gc_log_data = process_gclog(gc_log_file, gc_log_file_pos)
+        raw_gc_log_data = process_gclog(proc_details, gc_log_file, gc_log_file_pos)
 
     #####################################################
     # Keep the last dump of data in case there's an issue
