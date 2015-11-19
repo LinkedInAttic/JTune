@@ -1951,7 +1951,5 @@ if __name__ == "__main__":
                 user, msg),
             textwrap_offset)))
 
-    _at_exit(raw_gc_log_data, jmap_data, jstat_data, proc_details, replay_file, optimized_for_ygcs_rate)
-
     atexit.register(_at_exit, raw_gc_log_data, jmap_data, jstat_data, proc_details, replay_file,
                     optimized_for_ygcs_rate)
