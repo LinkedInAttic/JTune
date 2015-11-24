@@ -246,7 +246,8 @@ def liverun(cmd=None):
     # while getting the data 'live'. itertools.izip_longest seemed like it'd
     # almost do it, but it caches the results before sending it out...
     proc = sp.Popen(shlex.split(cmd), stdout=sp.PIPE, stderr=sp.STDOUT, env=env)
-
+    atexit.register(proc.terminate)
+	
     return iter(proc.stdout.readline, b'')
 
 
