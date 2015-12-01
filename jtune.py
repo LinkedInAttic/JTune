@@ -4,7 +4,7 @@
 """
 @author      Eric Bullen <ebullen@linkedin.com>
 @application jtune.py
-@version     1.1
+@version     1.2
 @abstract    This tool will give detailed information about the running
              JVM in real-time. It produces useful information that can
              further assist the user in debugging and optimization.
@@ -47,7 +47,7 @@ except locale.Error:
     locale.setlocale(locale.LC_ALL, 'en_US.utf8')
 
 handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter('%(asctime)s: "%(name)s" (line: %(lineno)d) - %(levelname)s %(message)s'))
+handler.setFormatter(logging.Formatter('%(asctime)s: "%(name)s" (line: %(lineno)d) - %(levelname)s: %(message)s'))
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -260,14 +260,16 @@ def liverun(cmd=None):
     Keyword arguments:
     cmd -- the command to run
     """
+    global subproc
+
     env = dict(os.environ)
 
     # Combining stdout and stderr. I can't find a way to keep both separate
     # while getting the data 'live'. itertools.izip_longest seemed like it'd
     # almost do it, but it caches the results before sending it out...
-    proc = sp.Popen(shlex.split(cmd), stdout=sp.PIPE, stderr=sp.STDOUT, env=env)
+    subproc = sp.Popen(shlex.split(cmd), stdout=sp.PIPE, stderr=sp.STDOUT, env=env)
 
-    return iter(proc.stdout.readline, b'')
+    return iter(subproc.stdout.readline, b'')
 
 
 def reduce_seconds(secs=None):
@@ -1366,6 +1368,7 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
     max_count -- the max number of lines the function should display
     ygc_stop_count -- the integer value that tells this function to stop at this number of young gcs
     """
+    global subproc
 
     jstat_data = dict()
     jstat_data['TIME_STAMP'] = list()
@@ -1614,6 +1617,10 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
     except (IOError, KeyboardInterrupt):
         # This triggers if I exit the 'liverun'
         pass
+    finally:
+        if subproc and subproc.poll() is None:
+            # The process hasn't terminated
+            subproc.terminate()
 
     return jstat_data
 
@@ -1773,7 +1780,12 @@ def get_jmap_data(pid=None, procdetails=None):
 
 ################################################################
 # Main
-user = getpass.getuser()
+user = os.environ.get("SUDO_USER", None)
+
+if not user:
+    user = getpass.getuser()
+
+subproc = None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analytics tool for tuning and analyzing GC behavior.")
@@ -1788,8 +1800,7 @@ if __name__ == "__main__":
     else:
         group = parser.add_mutually_exclusive_group(required=True)
 
-    group.add_argument('-r', '--replay', dest="replay_file", const="/tmp/jtune_data-{0}.bin.bz2".format(user),
-                       help="Replay a previously saved default is /tmp/jtune_data-{0}.bin.bz2 file".format(user), metavar="FILE", nargs="?", default=None)
+    group.add_argument('-r', '--replay', dest="replay_file", const="/tmp/jtune_data-{0}.bin.bz2".format(user), help="Replay a previously saved default is /tmp/jtune_data-{0}.bin.bz2 file".format(user), metavar="FILE", nargs="?", default=None)
     group.add_argument('-p', '--pid', help='Which java PID should I attach to', type=int)
     group.add_argument('--gc-stdin', help='Read GC log data from stdin', action="store_true")
 
@@ -1803,6 +1814,8 @@ if __name__ == "__main__":
     display_output = list()
 
     if DEBUG:
+        # Need to define it here for Pycharm (so I don't
+        # have to set up arguments).
         replay_file = "/tmp/some_file"
 
     if not (cmd_args.pid or cmd_args.gc_stdin) and not os.path.isfile(replay_file):
