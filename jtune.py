@@ -1301,7 +1301,7 @@ def _run_jmap(pid=None, procdetails=None):
     java_path = procdetails['java_path']
 
     try:
-        for line in liverun("{0}/jmap -J-Xmx128M -heap {1}".format(java_path, pid)):
+        for line in liverun("sudo -H -u root bash -c \"{0}/jmap -J-Xmx128M -heap {1}\"".format(java_path, pid)):
             field = line.split()
 
             if "MinHeapFreeRatio" in line:
@@ -1400,9 +1400,9 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
     display("#" * 5 + "\n")
 
     if max_count > 0:
-        cmd = "{0}/jstat -J-Xmx128M -gc {1} 1000 {2}".format(java_path, pid, max_count)
+        cmd = "sudo -H -u tomcat7 bash -c \"{0}/jstat -J-Xmx128M -gc {1} 1000 {2}\"".format(java_path, pid, max_count)
     else:
-        cmd = "{0}/jstat -J-Xmx128M -gc {1} 1000".format(java_path, pid)
+        cmd = "sudo -H -u tomcat7 bash -c \"{0}/jstat -J-Xmx128M -gc {1} 1000\"".format(java_path, pid)
 
     try:
         for line in liverun(cmd):
