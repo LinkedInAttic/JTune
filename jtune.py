@@ -1883,7 +1883,6 @@ if __name__ == "__main__":
                     logger.error("You need to include the '-XX:+PrintTenuringDistribution' option to the JVM for JTune to work correctly.")
 
                 if not proc_details.get("survivor_ratio", False):
-                    config_error = False
                     logger.warning("You probably want to include the '-XX:SurvivorRatio=<num>' option to the JVM for JTune to work correctly.")
 
                 if not proc_details.get("use_cms", False):
