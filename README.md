@@ -5,6 +5,17 @@ Overview
 
 JTune is a tool that will help you tune and troubleshoot a running JVM (Java 6 - Java 8) without restarting. It currently doesn't work with the G1 garbage collector, and will error out if this is detected. Tuning is based on two metrics: the aggregate time spent doing GCs, and the standard deviation of the GCs. Upon invocation, JTune captures the output of jstat for the given pid as well as the GC log data during the sample period.
 
+Installation
+------------
+
+```
+git clone https://github.com/linkedin/JTune.git
+cd JTune
+python setup.py install
+```
+
+It is recommended that you install JTune into a Python `virtualenv`. 
+
 Options Help
 ------------
 
@@ -12,8 +23,8 @@ In normal use, run JTune with the -p \<pid> parameter, and it will run indefinit
 
 There are additional options that you can take advantage of. See below output:
     
-    $ jtune.py -h
-    usage: jtune.py [-h] [-o OPTIMIZE] [-P] [-s FGC_STOP_COUNT]
+    $ jtune -h
+    usage: jtune [-h] [-o OPTIMIZE] [-P] [-s FGC_STOP_COUNT]
                      [-y YGC_STOP_COUNT] [-c STOP_COUNT] [-n] (-r [FILE] | -p PID)
     
     Run jstat w/ analytics
@@ -40,7 +51,7 @@ There are additional options that you can take advantage of. See below output:
 
 * You can also have it stop after X number of YGCs, FGCs, or jstat iterations (-y, -s, -c respectively). If you want it to make tuning suggestions, you'll want to let it run for at least 3 FGCs (-s <#>) before exiting.
 * There may be cases where you want jtune to optimize for a given number of CMS GCs, you can do this with the '-o #' parameter. Right now you can specify a range between 0 and 11 which corresponds to the 180 CMS/min to 1 CMS/min respectively. In most cases you can leave it as default. The way this parameter is used will likely change.
-* There may be cases where you see something odd in the suggestions, or want to save the data structures jtune.py used for further analysis. By default jtune saves this data in /tmp/jtune_data-{user}.bin.bz2. JTune can replay this file by passing it a -r \<path\> parameter.
+* There may be cases where you see something odd in the suggestions, or want to save the data structures jtune used for further analysis. By default jtune saves this data in /tmp/jtune_data-{user}.bin.bz2. JTune can replay this file by passing it a -r \<path\> parameter.
 
 Command Output
 --------------
@@ -50,7 +61,7 @@ Here's an example of a JTune run for a test instance (broken up into chunks)
 * JTune is running against PID 25815 for 40 iterations, exit, and report its findings:
 
 ```
-$ jtune.py -c 40 -p 25815
+$ jtune -c 40 -p 25815
 #####
 # Start Time:  2015-03-23 12:31:45.079102 GMT
 # Host:        fake-host.linkedin.com
@@ -201,11 +212,12 @@ This application is distributed under the terms of the Apache Software License v
 Authors
 -------
 * Eric Bullen <<ebullen@linkedin.com>> (Sr. Site Reliability Engineer at LinkedIn)
+* Jesse Ward <<jeward@linkedin.com>> (Staff Site Reliability Engineer at LinkedIn)
 
 FAQ
 ---
 ```
-Q: Do I have to run jtune.py as root?
+Q: Do I have to run jtune as root?
 A: You should run it as the user of the Java process you want to analyze (or root).
 
 Q: What versions of Java does this support?
@@ -218,4 +230,3 @@ A: You should have the following enabled: -Xloggc, -XX:+PrintTenuringDistributio
 Q: Can it tune the G1 GC?
 A: Not at this time. G1 is quite a bit harder to tweak, but it's work in progress.
 ```
-
