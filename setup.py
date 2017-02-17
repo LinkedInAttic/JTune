@@ -1,11 +1,23 @@
+import io
+
 from setuptools import setup
+
+
+description = 'A high precision Java CMS optimizer'
+try:
+    with io.open('README.md', encoding="utf-8") as fh:
+            long_description = fh.read()
+except IOError:
+    long_description = description
 
 setup(
     name='jtune',
-    version='2.0',
-    description='A high precision Java CMS optimizer',
+    version='2.0.0',
+    description=description,
+    long_description=description,
     url='https://github.com/linkedin/JTune',
     author='LinkedIn',
+    author_email='jeward@linkedin.com',
     license='Apache',
     packages=['jtune'],
     install_requires=[
@@ -15,5 +27,13 @@ setup(
         'console_scripts': [
             'jtune = jtune:main',
         ]
-    }
+    },
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Environment :: Console',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: Apache Software License',
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
+    ]
 )

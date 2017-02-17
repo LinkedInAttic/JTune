@@ -4,7 +4,7 @@
 """
 @author      Eric Bullen <ebullen@linkedin.com>
 @application jtune.py
-@version     1.2
+@version     2.0.0
 @abstract    This tool will give detailed information about the running
              JVM in real-time. It produces useful information that can
              further assist the user in debugging and optimization.
