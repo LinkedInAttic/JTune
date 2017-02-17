@@ -191,7 +191,7 @@ problem.
 
 
 ---
-* The allocation rate is the increase is usage before a GC done. Growth rate
+* The allocation rate is the increase in usage before a GC done. Growth rate
   is the increase in usage after a GC is done.
 
 * The JVM efficiency score is a convenient way to quantify how efficient the
