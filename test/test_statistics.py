@@ -2,9 +2,9 @@ import pytest
 
 from decimal import Decimal
 
-from jtune import median
-from jtune import mean
-from jtune import stdev
+from jtune.jtune import median
+from jtune.jtune import mean
+from jtune.jtune import stdev
 
 
 def test_median_empty():

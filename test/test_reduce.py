@@ -3,10 +3,10 @@ import pytest
 
 from decimal import Decimal
 
-from jtune import reduce_seconds
-from jtune import reduce_k
-from jtune import ord_num
-from jtune import sec_diff
+from jtune.jtune import reduce_seconds
+from jtune.jtune import reduce_k
+from jtune.jtune import ord_num
+from jtune.jtune import sec_diff
 
 
 def test_reduce_seconds_return_seconds():

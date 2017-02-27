@@ -3,7 +3,7 @@ import pytest
 
 from decimal import Decimal
 
-from jtune import Display
+from jtune.jtune import Display
 
 
 def test_record_add():

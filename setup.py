@@ -12,7 +12,7 @@ except IOError:
 
 setup(
     name='jtune',
-    version='2.0.0',
+    version='2.0.1',
     description=description,
     long_description=description,
     url='https://github.com/linkedin/JTune',
@@ -25,11 +25,11 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'jtune = jtune:main',
+            'jtune = jtune.jtune:main',
         ]
     },
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',

@@ -3,7 +3,7 @@ import pytest
 
 from decimal import Decimal
 
-from jtune import GCRecord
+from jtune.jtune import GCRecord
 
 
 def test_gcrecord_parnew():
