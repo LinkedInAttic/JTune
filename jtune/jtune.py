@@ -4,7 +4,7 @@
 """
 @author      Eric Bullen <ebullen@linkedin.com>
 @application jtune.py
-@version     1.2
+@version     2.0.3
 @abstract    This tool will give detailed information about the running
              JVM in real-time. It produces useful information that can
              further assist the user in debugging and optimization.
@@ -55,6 +55,37 @@ logger.addHandler(handler)
 
 # For me to use in PyCharm to read flight recorder files
 DEBUG = False
+
+
+class Display(object):
+
+    def __init__(self, textwrap_offset=80):
+        self.display_output = []
+        self.textwrap_offset = textwrap_offset
+
+    def render(self, message=None, keep_newline=True, save_output=True):
+        """Basically wraps the print function so that it will also save the output to an array for pasting
+
+        Keyword arguments:
+        message -- the message to print
+        keep_newline -- if this is True, then print it, otherwise, print with no newline (like print with a comma at the end)
+        save_output -- if this is false, do not save the output to an array for pasting
+        """
+
+        if save_output:
+            self.add(message)
+
+        if message.endswith("\n"):
+            message = message[:-1]
+
+        if keep_newline:
+            print message
+        else:
+            print message,
+
+    def add(self, message):
+        """Append message to output items."""
+        self.display_output.append(message)
 
 
 class GCRecord(object):
@@ -228,30 +259,6 @@ class GCRecord(object):
                     self.total_gc_time = Decimal(match.group(8))
 
                     self.og_used = self.total_heap_after_gc - self.young_size_after_gc
-
-
-def display(message=None, keep_newline=True, save_output=True):
-    """Basically wraps the print function so that it will also save the output to an array for pasting
-
-    Keyword arguments:
-    message -- the message to print
-    keep_newline -- if this is True, then print it, otherwise, print with no newline (like print with a comma at the end)
-    save_output -- if this is false, do not save the output to an array for pasting
-    """
-
-    # Not needed (using 'global'), but better to be explicit than not
-    global display_output
-
-    if save_output:
-        display_output.append(message)
-
-    if message.endswith("\n"):
-        message = message[:-1]
-
-    if keep_newline:
-        print message
-    else:
-        print message,
 
 
 def liverun(cmd=None):
@@ -469,24 +476,23 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=No
 
     ############################################################
     # Get some summary data that doesn't require GC log analysis
-    textwrap_offset = 80
 
     # Loop through the GC data array to find all CMS events, and capture
     # how long they took.
     cms_times = [record.cms_sweep_time for record in gc_data if record.is_cms_gc]
 
-    display("\n")
-    display("Meta:\n")
-    display("~~~~~\n")
+    display.render("\n")
+    display.render("Meta:\n")
+    display.render("~~~~~\n")
 
     sample_time_secs = sec_diff(gc_data[0].record_timestamp, gc_data[-1].record_timestamp)
 
     if sample_time_secs < 60:
-        display("GC Sample Time: {0} seconds\n".format(sample_time_secs))
+        display.render("GC Sample Time: {0} seconds\n".format(sample_time_secs))
     else:
-        display("GC Sample Time: {0} ({1} seconds)\n".format(reduce_seconds(sample_time_secs), sample_time_secs))
+        display.render("GC Sample Time: {0} ({1} seconds)\n".format(reduce_seconds(sample_time_secs), sample_time_secs))
 
-    display("GC Sample Time from {0} to {1}\n".format(gc_data[0].record_timestamp, gc_data[-1].record_timestamp))
+    display.render("GC Sample Time from {0} to {1}\n".format(gc_data[0].record_timestamp, gc_data[-1].record_timestamp))
 
     if proc_details:
         cpu_count = mp.cpu_count()
@@ -494,21 +500,21 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=No
         proc_utime_pct = proc_details['proc_utime_seconds'] / cpu_uptime
         proc_stime_pct = proc_details['proc_stime_seconds'] / cpu_uptime
 
-        display("System Uptime:  {0}\n".format(reduce_seconds(proc_details['sys_uptime_seconds'])))
-        display("Proc Uptime:    {0}\n".format(reduce_seconds(proc_details['proc_uptime_seconds'])))
-        display("Proc Usertime:  {0} ({1:0.2%})\n".format(reduce_seconds(proc_details['proc_utime_seconds']), proc_utime_pct))
-        display("Proc Systime:   {0} ({1:0.2%})\n".format(reduce_seconds(proc_details['proc_stime_seconds']), proc_stime_pct))
-        display("Proc RSS:       {0}\n".format(reduce_k(proc_details['proc_rss_bytes'] / 1024)))
-        display("Proc VSize:     {0}\n".format(reduce_k(proc_details['proc_vsize_bytes'] / 1024)))
-        display("Proc # Threads: {0}\n".format(proc_details['num_threads']))
+        display.render("System Uptime:  {0}\n".format(reduce_seconds(proc_details['sys_uptime_seconds'])))
+        display.render("Proc Uptime:    {0}\n".format(reduce_seconds(proc_details['proc_uptime_seconds'])))
+        display.render("Proc Usertime:  {0} ({1:0.2%})\n".format(reduce_seconds(proc_details['proc_utime_seconds']), proc_utime_pct))
+        display.render("Proc Systime:   {0} ({1:0.2%})\n".format(reduce_seconds(proc_details['proc_stime_seconds']), proc_stime_pct))
+        display.render("Proc RSS:       {0}\n".format(reduce_k(proc_details['proc_rss_bytes'] / 1024)))
+        display.render("Proc VSize:     {0}\n".format(reduce_k(proc_details['proc_vsize_bytes'] / 1024)))
+        display.render("Proc # Threads: {0}\n".format(proc_details['num_threads']))
 
-    display("\n")
+    display.render("\n")
 
     # Exit out as I don't have enough gc_data to do any analysis on
     if len(gc_data) < 2:
-        display("\n")
-        display("* NOTE: There wasn't enough data to do any analysis. Please let the tool\n")
-        display("        gather at least 2 complete gc.log records (found {0}).\n".format(len(gc_data)))
+        display.render("\n")
+        display.render("* NOTE: There wasn't enough data to do any analysis. Please let the tool\n")
+        display.render("        gather at least 2 complete gc.log records (found {0}).\n".format(len(gc_data)))
 
         return False
 
@@ -536,8 +542,8 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=No
             yg_size_delta = second_gc.young_size_before_gc - first_gc.young_size_after_gc
             yg_growth_delta = second_gc.young_size_after_gc - first_gc.young_size_after_gc
         except TypeError:
-            display("\n".join(textwrap.wrap("Warning: Something is really wrong with this JVM; I couldn't get correct GC data for it.", textwrap_offset)))
-            display("")
+            display.render("\n".join(textwrap.wrap("Warning: Something is really wrong with this JVM; I couldn't get correct GC data for it.", display.textwrap_offset)))
+            display.render("")
 
             yg_size_delta = 0
             yg_growth_delta = 0
@@ -595,7 +601,6 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=No
 
         gc_survivor_death_rates.append(survivor_death_rates)
 
-
     #################################################################################
     # Since I have 2 in-scope valid GCs, I'm going to calculate some needed JVM sizes
     # the sizes will be fixed if I have a fixed heap size (which we do in prod)
@@ -604,8 +609,8 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=No
     try:
         jvm_mem_cfg["og_size"] = (first_gc.total_heap - first_gc.young_size_total) * 1024
     except TypeError:
-        display("\n".join(textwrap.wrap("Error: I could not find a non CMS/FGC GC record for analysis. Exiting.", textwrap_offset)))
-        display("")
+        display.render("\n".join(textwrap.wrap("Error: I could not find a non CMS/FGC GC record for analysis. Exiting.", display.textwrap_offset)))
+        display.render("")
         sys.exit(1)
 
     jvm_mem_cfg["survivor_size"] = (first_gc.desired_survivor_size * 2)
@@ -620,36 +625,36 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=No
     yg_alloc_rates = [entry[0] for entry in yg_rates]
     min_yg_rate, mean_yg_rate, max_yg_rate = _min(yg_alloc_rates), mean(yg_alloc_rates), _max(yg_alloc_rates)
 
-    display("YG Allocation Rates*:\n")
-    display("~~~~~~~~~~~~~~~~~~~~~\n")
-    display("per sec (min/mean/max): {0:>13} {1:>13} {2:>13}\n".format(reduce_k(min_yg_rate) + "/s", reduce_k(mean_yg_rate) + "/s", reduce_k(max_yg_rate) + "/s"))
-    display("per hr  (min/mean/max): {0:>13} {1:>13} {2:>13}\n".format(reduce_k(min_yg_rate * 3600) + "/h", reduce_k(mean_yg_rate * 3600) + "/h", reduce_k(max_yg_rate * 3600) + "/h"))
-    display("\n")
+    display.render("YG Allocation Rates*:\n")
+    display.render("~~~~~~~~~~~~~~~~~~~~~\n")
+    display.render("per sec (min/mean/max): {0:>13} {1:>13} {2:>13}\n".format(reduce_k(min_yg_rate) + "/s", reduce_k(mean_yg_rate) + "/s", reduce_k(max_yg_rate) + "/s"))
+    display.render("per hr  (min/mean/max): {0:>13} {1:>13} {2:>13}\n".format(reduce_k(min_yg_rate * 3600) + "/h", reduce_k(mean_yg_rate * 3600) + "/h", reduce_k(max_yg_rate * 3600) + "/h"))
+    display.render("\n")
 
     # This grabs the second part of the tuple (which is
     # the total growth for that gc (not allocation rate!)
     min_og_rate, mean_og_rate, max_og_rate = _min(og_rates), mean(og_rates), _max(og_rates)
 
-    display("OG Promotion Rates:\n")
-    display("~~~~~~~~~~~~~~~~~~~\n")
-    display("per sec (min/mean/max): {0:>13} {1:>13} {2:>13}\n".format(reduce_k(min_og_rate) + "/s", reduce_k(mean_og_rate) + "/s", reduce_k(max_og_rate) + "/s"))
-    display("per hr  (min/mean/max): {0:>13} {1:>13} {2:>13}\n".format(reduce_k(min_og_rate * 3600) + "/h", reduce_k(mean_og_rate * 3600) + "/h", reduce_k(max_og_rate * 3600) + "/h"))
-    display("\n")
+    display.render("OG Promotion Rates:\n")
+    display.render("~~~~~~~~~~~~~~~~~~~\n")
+    display.render("per sec (min/mean/max): {0:>13} {1:>13} {2:>13}\n".format(reduce_k(min_og_rate) + "/s", reduce_k(mean_og_rate) + "/s", reduce_k(max_og_rate) + "/s"))
+    display.render("per hr  (min/mean/max): {0:>13} {1:>13} {2:>13}\n".format(reduce_k(min_og_rate * 3600) + "/h", reduce_k(mean_og_rate * 3600) + "/h", reduce_k(max_og_rate * 3600) + "/h"))
+    display.render("\n")
 
     ################################################
     # Survivor Lengths- wanted to make a nested list
     # comprehension, but I suppose that's a bit ugly
     # to debug/read
 
-    display("Survivor Death Rates:\n")
-    display("~~~~~~~~~~~~~~~~~~~~~\n")
+    display.render("Survivor Death Rates:\n")
+    display.render("~~~~~~~~~~~~~~~~~~~~~\n")
 
     survivor_lengths = list()
     for sub_arr in gc_survivor_death_rates:
         survivor_lengths.append(len([elem for elem in sub_arr if elem > 0]))
 
-    display("Lengths (min/mean/max): {0}/{1:0.1f}/{2}\n".format(_min(survivor_lengths), mean(survivor_lengths), _max(survivor_lengths)))
-    display("Death Rate Breakdown:\n")
+    display.render("Lengths (min/mean/max): {0}/{1:0.1f}/{2}\n".format(_min(survivor_lengths), mean(survivor_lengths), _max(survivor_lengths)))
+    display.render("Death Rate Breakdown:\n")
 
     cuml_pct = 1
     death_ages = list()
@@ -663,8 +668,8 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=No
 
         survivor_info[survivor_num] = min_pct, mean_pct, max_pct
 
-        display("   Age {0}: {1:>5} / {2:>5} / {3:>5} / {4:>5} (min/mean/max/cuml alive %)\n".format(survivor_num, "{0:0.1%}".format(min_pct), "{0:0.1%}".format(mean_pct), "{0:0.1%}".format(max_pct),
-                                                                                                     "{0:0.1%}".format(cuml_pct)))
+        display.render("   Age {0}: {1:>5} / {2:>5} / {3:>5} / {4:>5} (min/mean/max/cuml alive %)\n".format(survivor_num, "{0:0.1%}".format(min_pct), "{0:0.1%}".format(mean_pct), "{0:0.1%}".format(max_pct),
+                       "{0:0.1%}".format(cuml_pct)))
 
     ##################################
     # GC Times
@@ -682,77 +687,77 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=No
         else:
             fgc_rate = 0
 
-    display("\n")
-    display("GC Information:\n")
-    display("~~~~~~~~~~~~~~~\n")
-    display("YGC/FGC Count: {0}/{1} (Rate: {2:0.2f}/min, {3:0.2f}/min)\n".format(young_gc_count_delta, full_gc_count_delta, ygc_rate, fgc_rate))
-    display("\n")
-    display("Sample Period GC Load:     {0:0.2f}%\n".format(sample_gc_load))
-    display("")
+    display.render("\n")
+    display.render("GC Information:\n")
+    display.render("~~~~~~~~~~~~~~~\n")
+    display.render("YGC/FGC Count: {0}/{1} (Rate: {2:0.2f}/min, {3:0.2f}/min)\n".format(young_gc_count_delta, full_gc_count_delta, ygc_rate, fgc_rate))
+    display.render("\n")
+    display.render("Sample Period GC Load:     {0:0.2f}%\n".format(sample_gc_load))
+    display.render("")
 
-    display("CMS Sweep Times: {0:0.3f}s /  {1:0.3f}s /  {2:0.3f}s / {3:0.2f} (min/mean/max/stdev)\n".format(_min(cms_times), mean(cms_times), _max(cms_times), stdev(cms_times)))
-    display("YGC Times:       {0:0.0f}ms / {1:0.0f}ms / {2:0.0f}ms / {3:0.2f} (min/mean/max/stdev)\n".format(_min(young_gc_times), mean(young_gc_times), _max(young_gc_times), stdev(young_gc_times)))
-    display("FGC Times:       {0:0.0f}ms / {1:0.0f}ms / {2:0.0f}ms / {3:0.2f} (min/mean/max/stdev)\n".format(_min(full_gc_times), mean(full_gc_times), _max(full_gc_times), stdev(full_gc_times)))
+    display.render("CMS Sweep Times: {0:0.3f}s /  {1:0.3f}s /  {2:0.3f}s / {3:0.2f} (min/mean/max/stdev)\n".format(_min(cms_times), mean(cms_times), _max(cms_times), stdev(cms_times)))
+    display.render("YGC Times:       {0:0.0f}ms / {1:0.0f}ms / {2:0.0f}ms / {3:0.2f} (min/mean/max/stdev)\n".format(_min(young_gc_times), mean(young_gc_times), _max(young_gc_times), stdev(young_gc_times)))
+    display.render("FGC Times:       {0:0.0f}ms / {1:0.0f}ms / {2:0.0f}ms / {3:0.2f} (min/mean/max/stdev)\n".format(_min(full_gc_times), mean(full_gc_times), _max(full_gc_times), stdev(full_gc_times)))
 
     agg_ygc_time = sum(young_gc_times)
     agg_fgc_time = sum(full_gc_times)
 
-    display("Agg. YGC Time:   {0:0.0f}ms\n".format(agg_ygc_time))
-    display("Agg. FGC Time:   {0:0.0f}ms\n".format(agg_fgc_time))
-    display("\n")
+    display.render("Agg. YGC Time:   {0:0.0f}ms\n".format(agg_ygc_time))
+    display.render("Agg. FGC Time:   {0:0.0f}ms\n".format(agg_fgc_time))
+    display.render("\n")
 
     if og_rates:
-        display(
+        display.render(
             "Est. Time Between FGCs (min/mean/max):    {0:>10} {1:>10} {2:>10}\n".format(reduce_seconds(jvm_mem_cfg["og_size"] / min_og_rate), reduce_seconds(jvm_mem_cfg["og_size"] / mean_og_rate),
                                                                                          reduce_seconds(jvm_mem_cfg["og_size"] / max_og_rate)))
     else:
-        display("Est. Time Between FGCs (min/mean/max):    {0:>10} {1:>10} {2:>10}\n".format("n/a", "n/a", "n/a"))
+        display.render("Est. Time Between FGCs (min/mean/max):    {0:>10} {1:>10} {2:>10}\n".format("n/a", "n/a", "n/a"))
 
-    display("Est. OG Size for 1 FGC/hr (min/mean/max): {0:>10} {1:>10} {2:>10}\n".format(reduce_k(min_og_rate * 3600), reduce_k(mean_og_rate * 3600), reduce_k(max_og_rate * 3600)))
-    display("\n")
+    display.render("Est. OG Size for 1 FGC/hr (min/mean/max): {0:>10} {1:>10} {2:>10}\n".format(reduce_k(min_og_rate * 3600), reduce_k(mean_og_rate * 3600), reduce_k(max_og_rate * 3600)))
+    display.render("\n")
 
-    display("Overall JVM Efficiency Score*: {0:0.3f}%\n".format(100 - sample_gc_load))
-    display("\n")
+    display.render("Overall JVM Efficiency Score*: {0:0.3f}%\n".format(100 - sample_gc_load))
+    display.render("\n")
 
     ###################################
     # JMap Data
-    display("Current JVM Mem Configuration:\n")
-    display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+    display.render("Current JVM Mem Configuration:\n")
+    display.render("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
     if jmap_data:
         for k, v in jmap_data.iteritems():
             if "Size" in k:
                 v = reduce_k(v / 1024)
 
-            display("{0:>17}: {1}\n".format(k, v))
+            display.render("{0:>17}: {1}\n".format(k, v))
     else:
         for k, v in jvm_mem_cfg.iteritems():
-            display("{0:>17}: {1}\n".format(k, reduce_k(v / 1024)))
+            display.render("{0:>17}: {1}\n".format(k, reduce_k(v / 1024)))
 
-    display("\n")
+    display.render("\n")
 
     ######################
     # Show recommendations
     _show_recommendations(death_ages, young_gc_times, full_gc_times, fgc_rate, ygc_rate, yg_alloc_rates, og_rates, jvm_mem_cfg, jmap_data, jstat_data, gc_data, cms_times, survivor_info,
                           optimized_for_ygcs_rate, proc_details)
 
-    display("~~~\n")
-    display("* The allocation rate is the increase in usage before a GC done. Growth rate\n")
-    display("  is the increase in usage after a GC is done.\n")
+    display.render("~~~\n")
+    display.render("* The allocation rate is the increase in usage before a GC done. Growth rate\n")
+    display.render("  is the increase in usage after a GC is done.\n")
 
-    display("\n")
-    display("* The JVM efficiency score is a convenient way to quantify how efficient the\n")
-    display("  JVM is. The most efficient JVM is 100% (pretty much impossible to obtain).\n")
+    display.render("\n")
+    display.render("* The JVM efficiency score is a convenient way to quantify how efficient the\n")
+    display.render("  JVM is. The most efficient JVM is 100% (pretty much impossible to obtain).\n")
 
     if full_gc_count_delta == 0:
-        display("\n")
-        display("* There were no full GCs during this sample period. This reporting will\n")
-        display("  be less useful/accurate as a result.\n")
+        display.render("\n")
+        display.render("* There were no full GCs during this sample period. This reporting will\n")
+        display.render("  be less useful/accurate as a result.\n")
 
-    display("\n")
-    display("* A copy of the critical data used to generate this report is stored\n")
-    display("  in /tmp/jtune_data-{0}.bin.bz2. Please copy this to your homedir if you\n".format(user))
-    display("  want to save/analyze this further.\n")
+    display.render("\n")
+    display.render("* A copy of the critical data used to generate this report is stored\n")
+    display.render("  in /tmp/jtune_data-{0}.bin.bz2. Please copy this to your homedir if you\n".format(user))
+    display.render("  want to save/analyze this further.\n")
 
 
 def _get_survivor_info(death_ages=None, survivor_info=None, gc_data=None, survivor_problem_pct=None, curr_ng_size=None, adj_ng_size=None):
@@ -837,17 +842,17 @@ def _get_survivor_info(death_ages=None, survivor_info=None, gc_data=None, surviv
 
             # We're using all the available ages, but objects are still alive...
             if max_survivor_age == len(death_ages):
-                display("\n".join(textwrap.wrap(
+                display.render("\n".join(textwrap.wrap(
                     "* Warning: It looks like your tenuring threshold is too high - {0:0.0%} of your ages are reaping at or below 4% of the objects. We could make it easier for the JVM if we reduce your MaxTenuringThreshold by {1} to {2} instead of {3}.".format(
                         below_threshold_pct, below_threshold_ct, len(death_ages) - below_threshold_ct, max_survivor_age))))
             else:
-                display("\n".join(textwrap.wrap(
+                display.render("\n".join(textwrap.wrap(
                     "* Warning: It looks like your tenuring threshold is too high - {0:0.0%} of your ages are reaping at or below 4% of the objects. We could make it easier for the JVM if we reduce your MaxTenuringThreshold by {1} to {2} instead of {3}. BE CAREFUL - your max *used* age in the gc.logs of {4} is less than the configured max age of {3} - make sure that you used a large enough sample size, and let the JVM go through 3 FGCs (option: '-s 3') and is being checked during peak traffic.".format(
                         below_threshold_pct, below_threshold_ct, len(death_ages) - below_threshold_ct, max_survivor_age, len(death_ages)))))
 
             max_tenuring_age = len(death_ages) - below_threshold_ct
         else:
-            display("\n".join(textwrap.wrap(
+            display.render("\n".join(textwrap.wrap(
                 "* Warning: Your survivor age is too short, your last age of {0} has {1:0.2f}% of its objects still alive. Because of this, I'm unable to reliably determine how your objects are aging. Unset or increase the MaxTenuringThreshold (max: 15) to mitigate this problem.".format(
                     len(age_objects_still_alive), age_objects_still_alive[-1]))))
 
@@ -871,9 +876,9 @@ def _get_survivor_info(death_ages=None, survivor_info=None, gc_data=None, surviv
 
     # Checking if survivor space is LARGER than the newgen size
     if survivor_ratio < 1:
-        display("\n".join(textwrap.wrap(
+        display.render("\n".join(textwrap.wrap(
             "* Warning: The calculated recommended survivor ratio of {0:0.2f} is less than 1. This is not possible, so I increased the size of newgen by {1}, and set the survivor ratio to 1. Try the tuning suggestions, and watch closely.\n".format(
-                survivor_ratio, reduce_k((max_tenuring_size - adj_ng_size) / 1024)), textwrap_offset)) + "\n\n")
+                survivor_ratio, reduce_k((max_tenuring_size - adj_ng_size) / 1024)), display.textwrap_offset)) + "\n\n")
 
         # This is close, but still wrong. If I run into this condition, then I need to
         # also fix the newgen size b/c the tenured size is based off of the newgen
@@ -903,8 +908,8 @@ def _show_recommendations(death_ages=None, young_gc_times=None, full_gc_times=No
     # 2) YGC times should have a low standard deviation(<= 5)
     # 3) YGC times should be low (<= 50ms, ideally)
 
-    display("Recommendation Summary:\n")
-    display("~~~~~~~~~~~~~~~~~~~~~~~\n")
+    display.render("Recommendation Summary:\n")
+    display.render("~~~~~~~~~~~~~~~~~~~~~~~\n")
 
     # This is how many ygcs/sec should be happening, if the mean ygc
     # times are higher than desired
@@ -967,16 +972,16 @@ def _show_recommendations(death_ages=None, young_gc_times=None, full_gc_times=No
         live_data_size_bytes = _min(record.og_used for record in normal_gc_data[record_num:])
 
     if proc_details and proc_details['proc_uptime_seconds'] < 300:
-        display("\n".join(textwrap.wrap(
+        display.render("\n".join(textwrap.wrap(
             "Warning: The process I'm doing the analysis on has been up for {0}, and may not be in a steady-state. It's best to let it be up for more than 5 minutes to get more realistic results.\n".format(
                 reduce_seconds(proc_details['proc_uptime_seconds'])))) + "\n\n")
 
     #################################################
     # Find the recommended NewGen size
     if len(young_gc_times) < ygc_count_goal:
-        display("\n".join(
+        display.render("\n".join(
             textwrap.wrap("Warning: There were only {0} YGC entries to do the analysis on. It's better to have > {1} to get more realistic results.\n".format(len(young_gc_times), ygc_count_goal),
-                          textwrap_offset)) + "\n\n")
+                          display.textwrap_offset)) + "\n\n")
 
     if ygc_stdev > ygc_stdev_goal * 4:
         comment = "VERY inconsistent"
@@ -1008,8 +1013,8 @@ def _show_recommendations(death_ages=None, young_gc_times=None, full_gc_times=No
             # Go ahead and set it regardless
             adj_ng_size = new_adj_ng_size
         except ValueError as msg:
-            display("\n" + "\n".join(textwrap.wrap("* Error: {0}".format(msg), textwrap_offset)) + "\n\n")
-            display("")
+            display.render("\n" + "\n".join(textwrap.wrap("* Error: {0}".format(msg), display.textwrap_offset)) + "\n\n")
+            display.render("")
             return False
 
         messages.append(
@@ -1032,8 +1037,8 @@ def _show_recommendations(death_ages=None, young_gc_times=None, full_gc_times=No
             # Go ahead and set it regardless
             adj_ng_size = new_adj_ng_size
         except ValueError as msg:
-            display("\n" + "\n".join(textwrap.wrap("* Error: {0}".format(msg), textwrap_offset)) + "\n\n")
-            display("")
+            display.render("\n" + "\n".join(textwrap.wrap("* Error: {0}".format(msg), display.textwrap_offset)) + "\n\n")
+            display.render("")
             return False
 
         messages.append(
@@ -1055,14 +1060,14 @@ def _show_recommendations(death_ages=None, young_gc_times=None, full_gc_times=No
             # Go ahead and set it regardless
             adj_ng_size = new_adj_ng_size
         except ValueError as msg:
-            display("\n" + "\n".join(textwrap.wrap("* Error: {0}".format(msg), textwrap_offset)) + "\n\n")
-            display("")
+            display.render("\n" + "\n".join(textwrap.wrap("* Error: {0}".format(msg), display.textwrap_offset)) + "\n\n")
+            display.render("")
             return False
 
         messages.append("- The mean YGC rate is {0:0.2f}/min, and the mean YGC time is {1:0.0f}ms (stdev of {2:0.2f} which is {3}).".format(ygc_rate, ygc_mean_ms, ygc_stdev, comment))
 
     for message in messages:
-        display("\n".join(textwrap.wrap(message)) + "\n")
+        display.render("\n".join(textwrap.wrap(message)) + "\n")
 
     #################################################
     # Find the recommended PermGen size
@@ -1072,28 +1077,28 @@ def _show_recommendations(death_ages=None, young_gc_times=None, full_gc_times=No
 
     ############################################
     # Find out what the survivor ratio should be
-    display("\n".join(
-        textwrap.wrap("- Looking at the worst (max) survivor percentages for all the ages, it looks like a TenuringThreshold of {0:0.0f} is ideal.".format(max_tenuring_age), textwrap_offset)) + "\n")
-    display("\n".join(textwrap.wrap(
+    display.render("\n".join(
+        textwrap.wrap("- Looking at the worst (max) survivor percentages for all the ages, it looks like a TenuringThreshold of {0:0.0f} is ideal.".format(max_tenuring_age), display.textwrap_offset)) + "\n")
+    display.render("\n".join(textwrap.wrap(
         "- The survivor size should be 2x the max size for tenuring threshold of {0:0.0f} given above. Given this, the survivor size of {1:0.0f}M is ideal.".format(max_tenuring_age,
                                                                                                                                                                     max_tenuring_size / 1024 / 1024,
-                                                                                                                                                                    textwrap_offset))) + "\n")
-    display("\n".join(textwrap.wrap("- To ensure enough survivor space is allocated, a survivor ratio of {0:0.0f} should be used.".format(survivor_ratio), textwrap_offset)) + "\n")
+                                                                                                                                                                    display.textwrap_offset))) + "\n")
+    display.render("\n".join(textwrap.wrap("- To ensure enough survivor space is allocated, a survivor ratio of {0:0.0f} should be used.".format(survivor_ratio), display.textwrap_offset)) + "\n")
 
     #################################################
     # Find the recommended max heap size
     if len(full_gc_times) < fgc_count_goal:
-        display("\n" + "\n".join(textwrap.wrap(
+        display.render("\n" + "\n".join(textwrap.wrap(
             "* Error: You really need to have at least {0} (preferably more) FGCs happen (I found {1}) before doing any OG size recommendation analysis. Stopping any further analysis.\n".format(
-                fgc_count_goal, len(full_gc_times)), textwrap_offset)) + "\n\n")
-        display("\n")
+                fgc_count_goal, len(full_gc_times)), display.textwrap_offset)) + "\n\n")
+        display.render("\n")
         return False
 
     recommended_max_heap_size = 3.5 * float(live_data_size_bytes) + float(max_tenuring_size + adj_ng_size)
     if max_heap_size != recommended_max_heap_size:
-        display("\n".join(textwrap.wrap(
+        display.render("\n".join(textwrap.wrap(
             "- It's recommended to have the max heap size 3-4x the size of the live data size (OldGen + PermGen), and adjusted to include the recommended survivor and newgen size. New recommended size is {0:0.0f}MiB (currently: {1:0.0f}MiB).".format(
-                float(recommended_max_heap_size) / 1024.0 / 1024.0, float(max_heap_size) / 1024.0 / 1024.0), textwrap_offset)) + "\n")
+                float(recommended_max_heap_size) / 1024.0 / 1024.0, float(max_heap_size) / 1024.0 / 1024.0), display.textwrap_offset)) + "\n")
 
     #################################################
     # Figure out the occupancy fraction
@@ -1107,40 +1112,40 @@ def _show_recommendations(death_ages=None, young_gc_times=None, full_gc_times=No
     oldgen_offset = curr_og_size - (float(_max(yg_alloc_rates) / 1024) * max_cms_time) - (max_cms_time * max_og_rate)
     occ_fraction = math.floor((float(oldgen_offset) / curr_og_size) * 100)
 
-    display("\n".join(textwrap.wrap(
+    display.render("\n".join(textwrap.wrap(
         "- With a max {0} percentile OG promotion rate of {1}/s, and the max CMS sweep time of {2}s, you should not have a occupancy fraction any higher than {3:0.0f}.".format(ord_num(pct_number),
                                                                                                                                                                                 reduce_k(Decimal(str(
                                                                                                                                                                                     max_og_rate / 1024.0))),
                                                                                                                                                                                 max_cms_time,
                                                                                                                                                                                 occ_fraction),
-        textwrap_offset)) + "\n")
+        display.textwrap_offset)) + "\n")
 
     # Java 7 G1 Stuff
-    display("\n")
-    display("Java G1 Settings:\n")
-    display("~~~~~~~~~~~~~~~~~~~\n")
+    display.render("\n")
+    display.render("Java G1 Settings:\n")
+    display.render("~~~~~~~~~~~~~~~~~~~\n")
     if ready_for_g1:
-        display("\n".join(textwrap.wrap(
+        display.render("\n".join(textwrap.wrap(
             "- With a max ygc stdev of {0:0.2f}, and a {1} percentile ygc mean ms of {2:0.0f}ms, your config is good enough to move to the G1 garbage collector.".format(ygc_stdev, ord_num(pct_number),
                                                                                                                                                                          ygc_mean_ms),
-            textwrap_offset)) + "\n")
-        display("\n".join(textwrap.wrap("- Since G1 uses one space for everything, the consolidated heap size should be {0:0.0f}MiB.".format(float(recommended_max_heap_size) / 1024.0 / 1024.0),
-                                        textwrap_offset)) + "\n")
+            display.textwrap_offset)) + "\n")
+        display.render("\n".join(textwrap.wrap("- Since G1 uses one space for everything, the consolidated heap size should be {0:0.0f}MiB.".format(float(recommended_max_heap_size) / 1024.0 / 1024.0),
+                       display.textwrap_offset)) + "\n")
     else:
-        display("\n".join(textwrap.wrap(
+        display.render("\n".join(textwrap.wrap(
             "- With a max ygc stdev of {0:0.2f}, and a {1} percentile ygc mean ms of {2:0.0f}ms, your config is probably not ready to move to the G1 garbage collector. Try tuning the JVM, and see if that improves things first.".format(
-                ygc_stdev, ord_num(pct_number), ygc_mean_ms), textwrap_offset)) + "\n")
+                ygc_stdev, ord_num(pct_number), ygc_mean_ms), display.textwrap_offset)) + "\n")
 
-    display("\n")
-    display("The JVM arguments from the above recommendations:\n")
-    display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
-    display("\n".join(textwrap.wrap("-Xmx{0:0.0f}m -Xms{0:0.0f}m -Xmn{1:0.0f}m -XX:SurvivorRatio={2:0.0f} -XX:MaxTenuringThreshold={3:0.0f} -XX:CMSInitiatingOccupancyFraction={4:0.0f}".format(recommended_max_heap_size / 1024.0 / 1024.0, float(adj_ng_size) / 1024.0 / 1024.0, survivor_ratio, max_tenuring_age, occ_fraction), textwrap_offset)) + "\n")
+    display.render("\n")
+    display.render("The JVM arguments from the above recommendations:\n")
+    display.render("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+    display.render("\n".join(textwrap.wrap("-Xmx{0:0.0f}m -Xms{0:0.0f}m -Xmn{1:0.0f}m -XX:SurvivorRatio={2:0.0f} -XX:MaxTenuringThreshold={3:0.0f} -XX:CMSInitiatingOccupancyFraction={4:0.0f}".format(recommended_max_heap_size / 1024.0 / 1024.0, float(adj_ng_size) / 1024.0 / 1024.0, survivor_ratio, max_tenuring_age, occ_fraction), display.textwrap_offset)) + "\n")
 
     if ready_for_g1:
-        display("\n")
-        display("The JVM arguments for G1:\n")
-        display("~~~~~~~~~~~~~~~~~~~~~~~~~\n")
-        display("\n".join(textwrap.wrap("-XX:+UseG1GC -XX:MaxGCPauseMillis={0:0.0f} -Xms{1:0.0f}m -Xmx{1:0.0f}m ".format(ygc_mean_ms, recommended_max_heap_size / 1024.0 / 1024.0), textwrap_offset)) + "\n")
+        display.render("\n")
+        display.render("The JVM arguments for G1:\n")
+        display.render("~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+        display.render("\n".join(textwrap.wrap("-XX:+UseG1GC -XX:MaxGCPauseMillis={0:0.0f} -Xms{1:0.0f}m -Xmx{1:0.0f}m ".format(ygc_mean_ms, recommended_max_heap_size / 1024.0 / 1024.0), display.textwrap_offset)) + "\n")
 
 
 def get_proc_info(pid=None):
@@ -1394,10 +1399,10 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
 
     # Being able to use python3's print function that I could override would
     # work much better here; instead I have to do this ghetto way...
-    display("#" * 5 + "\n")
-    display("# Start Time:  {0} GMT\n".format(datetime.datetime.now()))
-    display("# Host:        {0}\n".format(socket.getfqdn()))
-    display("#" * 5 + "\n")
+    display.render("#" * 5 + "\n")
+    display.render("# Start Time:  {0} GMT\n".format(datetime.datetime.now()))
+    display.render("# Host:        {0}\n".format(socket.getfqdn()))
+    display.render("#" * 5 + "\n")
 
     if max_count > 0:
         cmd = "{0}/jstat -J-Xmx128M -gc {1} 1000 {2}".format(java_path, pid, max_count)
@@ -1521,28 +1526,28 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
                         continue
 
                     # Print the column header
-                    display("  ", keep_newline=False)
+                    display.render("  ", keep_newline=False)
                     for field in ordered_fields:
                         if combined_survivors and field != "S0C" and field != "S1C":
                             if field in field_widths:
                                 width = field_widths[field]
-                                display("{0:>{1}}".format(field, width + 1), keep_newline=False)
+                                display.render("{0:>{1}}".format(field, width + 1), keep_newline=False)
 
-                    display("\n")
+                    display.render("\n")
 
                     # Print a nice line spacer all even-like
-                    display("  ", keep_newline=False)
+                    display.render("  ", keep_newline=False)
                     for field in ordered_fields:
                         if combined_survivors and field != "S0C" and field != "S1C":
                             if field in field_widths:
                                 width = field_widths[field]
-                                display("{0:>{1}}".format("~" * width, width + 1), keep_newline=False)
+                                display.render("{0:>{1}}".format("~" * width, width + 1), keep_newline=False)
 
-                    display("\n")
+                    display.render("\n")
 
                     # Print the first row of data that was cached so it can
                     # be used to determine field widths
-                    display("  ", keep_newline=False)
+                    display.render("  ", keep_newline=False)
                     for field in ordered_fields:
                         if field in field_widths:
                             width = field_widths[field]
@@ -1554,9 +1559,9 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
                                 if short_fields and field not in ['EP', 'OP', 'YGC', 'YGCT', 'FGC', 'FGCT', 'GCT', 'FGCD', 'YGCD']:
                                     value = reduce_k(value, precision=1)
 
-                                display("{0:>{1}}".format(value, width + 1), keep_newline=False)
+                                display.render("{0:>{1}}".format(value, width + 1), keep_newline=False)
 
-                    display("\n")
+                    display.render("\n")
 
                 else:
                     #################################
@@ -1564,9 +1569,9 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
                     # continue to the next iteration.
                     if no_jstat_output:
                         if last_fgc_ct > prev_fgc_ct:
-                            display("* ", keep_newline=False)
+                            display.render("* ", keep_newline=False)
                         else:
-                            display("  ", keep_newline=False)
+                            display.render("  ", keep_newline=False)
 
                         # Now print the actual numbers
                         for field in ordered_fields:
@@ -1580,15 +1585,15 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
                                     if short_fields and field not in ['EP', 'OP', 'YGC', 'YGCT', 'FGC', 'FGCT', 'GCT', 'FGCD', 'YGCD']:
                                         value = reduce_k(value, precision=1)
 
-                                    display("{0:>{1}}".format(value, width + 1), keep_newline=False)
+                                    display.render("{0:>{1}}".format(value, width + 1), keep_newline=False)
 
-                        display("\n")
+                        display.render("\n")
                     else:
 
                         if last_fgc_ct > prev_fgc_ct:
-                            display("* ", keep_newline=False)
+                            display.render("* ", keep_newline=False)
                         else:
-                            display("  ", keep_newline=False)
+                            display.render("  ", keep_newline=False)
 
                         # Now print the actual numbers
                         for field in ordered_fields:
@@ -1602,9 +1607,9 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
                                     if short_fields and field not in ['EP', 'OP', 'YGC', 'YGCT', 'FGC', 'FGCT', 'GCT', 'FGCD', 'YGCD']:
                                         value = reduce_k(value, precision=1)
 
-                                    display("{0:>{1}}".format(value, width + 1), keep_newline=False)
+                                    display.render("{0:>{1}}".format(value, width + 1), keep_newline=False)
 
-                        display("\n")
+                        display.render("\n")
 
             if 0 < fgc_stop_count <= total_fgcs:
                 break
@@ -1740,7 +1745,7 @@ def get_rotated_log_file(gc_log_file):
         logger.debug("\n".join(
             textwrap.wrap(
                 "Was not able to find a rotated GC log for this process, defaulting to gc log from process.",
-                textwrap_offset)))
+                display.textwrap_offset)))
 
     return gc_log_file
 
@@ -1752,7 +1757,7 @@ def get_gc_log_file(procdetails):
         logger.error("\n".join(
             textwrap.wrap(
                 "I was not able to find a GC log for this process. Is the instance up?",
-                textwrap_offset)))
+                display.textwrap_offset)))
         sys.exit(1)
 
     if procdetails['gc_file_rotation']:
@@ -1786,8 +1791,11 @@ if not user:
     user = getpass.getuser()
 
 subproc = None
+display = Display()
 
-if __name__ == "__main__":
+
+def main():
+
     parser = argparse.ArgumentParser(description="Analytics tool for tuning and analyzing GC behavior.")
     parser.add_argument('-o', '--optimize', help='Optimize for latency or throughput (range 0-11, 0 = ygc @ 180/min, 11 = ygc @  1/min). Floats allowed.', type=Decimal, required=False, default=9)
     parser.add_argument('-s', '--fgc-stop-count', help='How many full gcs should happen before I stop (very important for analytics)', type=int, default=0)
@@ -1811,7 +1819,6 @@ if __name__ == "__main__":
     jmap_data = list()
     jstat_data = list()
     proc_details = list()
-    display_output = list()
 
     if DEBUG:
         # Need to define it here for Pycharm (so I don't
@@ -1821,8 +1828,6 @@ if __name__ == "__main__":
     if not (cmd_args.pid or cmd_args.gc_stdin) and not os.path.isfile(replay_file):
         logger.error("The replay file '{0}' does not exist, or is not a file.".format(replay_file))
         sys.exit(1)
-
-    textwrap_offset = 80
 
     # A ygc of 1/min
     ygc_lower_rate_per_min = 1
@@ -1851,7 +1856,7 @@ if __name__ == "__main__":
     if replay_file:
         try:
             with open(replay_file, "rb") as _file:
-                proc_details, jstat_data, display_output, jmap_data, raw_gc_log_data = pickle.loads(_file.read().decode('bz2'))
+                proc_details, jstat_data, display.display_output, jmap_data, raw_gc_log_data = pickle.loads(_file.read().decode('bz2'))
         except (ValueError, IOError):
             logger.error("I was not able to read the replay file. Exiting.")
             sys.exit(1)
@@ -1907,7 +1912,7 @@ if __name__ == "__main__":
             gc_log_file = get_gc_log_file(proc_details)
 
             if not gc_log_file:
-                logger.error("\n".join(textwrap.wrap("I was not able to find a GC log for this process. Is the instance up?", textwrap_offset)))
+                logger.error("\n".join(textwrap.wrap("I was not able to find a GC log for this process. Is the instance up?", display.textwrap_offset)))
                 sys.exit(1)
 
             ####################################################
@@ -1925,17 +1930,20 @@ if __name__ == "__main__":
             # This basically hits after the user ctrl-c's
             raw_gc_log_data = process_gclog(gc_log_file, gc_log_file_pos)
 
-
         #####################################################
         # Keep the last dump of data in case there's an issue
         try:
             with open("/tmp/jtune_data-{0}.bin.bz2".format(user), "wb") as _file:
                 os.chmod("/tmp/jtune_data-{0}.bin.bz2".format(user), 0666)
-                _file.write(pickle.dumps((proc_details, jstat_data, display_output, jmap_data, raw_gc_log_data), pickle.HIGHEST_PROTOCOL).encode('bz2'))
+                _file.write(pickle.dumps((proc_details, jstat_data, display.display_output, jmap_data, raw_gc_log_data), pickle.HIGHEST_PROTOCOL).encode('bz2'))
         except IOError as msg:
-            logger.error("\n".join(textwrap.wrap("I was not able to write to /tmp/jtune_data-{0}.bin.bz2 (no saving of state): {1}".format(user, msg), textwrap_offset)))
+            logger.error("\n".join(textwrap.wrap("I was not able to write to /tmp/jtune_data-{0}.bin.bz2 (no saving of state): {1}".format(user, msg), display.textwrap_offset)))
 
     if DEBUG:
         _at_exit(raw_gc_log_data, jmap_data, jstat_data, proc_details, replay_file, optimized_for_ygcs_rate)
     else:
         atexit.register(_at_exit, raw_gc_log_data, jmap_data, jstat_data, proc_details, replay_file, optimized_for_ygcs_rate)
+
+
+if __name__ == '__main__':
+    main()
