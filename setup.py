@@ -12,7 +12,7 @@ except IOError:
 
 setup(
     name='jtune',
-    version='2.0.2',
+    version='2.0.3',
     description=description,
     long_description=description,
     url='https://github.com/linkedin/JTune',

@@ -8,11 +8,20 @@ JTune is a tool that will help you tune and troubleshoot a running JVM (Java 6 -
 Installation
 ------------
 
+The easiest way to install JTune is via `pip`. A `pip install` will fetch the latest version of JTune from the [PyPI repo](https://pypi.python.org/pypi/jtune).
+
+```
+pip install jtune
+```
+
+The latest development branch can be installed via setuptools, by performing the following.
 ```
 git clone https://github.com/linkedin/JTune.git
 cd JTune
 python setup.py install
 ```
+
+If you wish to run JTune as a one time action, all JTune logic is present in a single file (jtune.py). Simply copying jtune.py to your target host will work as well.
 
 It is recommended that you install JTune into a Python `virtualenv`. 
 
