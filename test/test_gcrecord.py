@@ -6,6 +6,19 @@ from decimal import Decimal
 from jtune.jtune import GCRecord
 
 
+def test_gcrecord_fullgc():
+    """Verify parsing of a Full GC record."""
+
+    full_gc = (datetime.datetime(2017, 2, 16, 11, 26, 47, 922000),
+               ['2017-02-16T11:26:47.922-0800: 67.436: [Full GC (Ergonomics) [PSYoungGen: 63767K->58469K(699392K)] [ParOldGen: 1554485K->1556899K(1815040K)] 1618252K->1615369K(2514432K), [Metaspace: 40896K->40896K(1085440K)], 8.5770030 secs] [Times: user=82.54 sys=0.27, real=8.58 secs]'])
+
+    r = GCRecord(full_gc)
+    assert r.gc_type == 'FULL'
+    assert r.is_stw_gc
+    assert r.valid_record
+    assert r.stw_time == 8.5770029999999995
+
+
 def test_gcrecord_parnew():
     """Verify parsing of a parnew GC record."""
 
