@@ -29,7 +29,6 @@ import os
 import pickle
 import re
 import resource
-import shlex
 import socket
 import subprocess as sp
 import sys
@@ -274,9 +273,9 @@ def liverun(cmd=None):
     # Combining stdout and stderr. I can't find a way to keep both separate
     # while getting the data 'live'. itertools.izip_longest seemed like it'd
     # almost do it, but it caches the results before sending it out...
-    subproc = sp.Popen(shlex.split(cmd), stdout=sp.PIPE, stderr=sp.STDOUT, env=env)
+    subproc = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT, env=env)
 
-    return iter(subproc.stdout.readline, b'')
+    return iter(subproc.communicate()[0].splitlines())
 
 
 def reduce_seconds(secs=None):
@@ -1168,46 +1167,47 @@ def get_proc_info(pid=None):
         with open("/proc/{0}/cmdline".format(pid), "r") as _file:
             for blob in _file:
                 for line in blob.split("\0"):
-                    if "-Xloggc" in line:
-                        gc_path = line.split(":", 1)[1]
-
-                        if gc_path.startswith("/"):
-                            details['gc_log_path'] = gc_path
-                        else:
-                            details['gc_log_path'] = details['proc_cwd'] + "/" + gc_path
-
-                    elif "/bin/java" in line:
+                    if "/bin/java" in line:
                         details['java_path'] = os.path.dirname(line)
+                    else:
+                        details['java_path'] = ''.join(liverun("which java")).strip().replace("/java", "")
 
-                    elif "-XX:+UseGCLogFileRotation" in line:
-                        details['gc_file_rotation'] = True
+        for line in liverun("jps -lvm | grep '^{0} '".format(pid)):
+            for segment in line.split(" "):
+                if "-Xloggc" in segment:
+                    gc_path = segment.split(":", 1)[1]
 
-                    elif "-Xms" in line:
-                        details['min_heap_size'] = line.split("ms")[1]
+                    if gc_path.startswith("/"):
+                        details['gc_log_path'] = gc_path
+                    else:
+                        details['gc_log_path'] = details['proc_cwd'] + "/" + gc_path
 
-                    elif "-Xmx" in line:
-                        details['max_heap_size'] = line.split("mx")[1]
+                elif "-XX:+UseGCLogFileRotation" in segment:
+                    details['gc_file_rotation'] = True
 
-                    elif "-XX:+PrintGCDateStamps" in line:
-                        details['print_gc_date_stamps'] = True
+                elif "-Xms" in segment:
+                    details['min_heap_size'] = segment.split("ms")[1]
 
-                    elif "-XX:+PrintGCDetails" in line:
-                        details['print_gc_details'] = True
+                elif "-Xmx" in segment:
+                    details['max_heap_size'] = segment.split("mx")[1]
 
-                    elif "-XX:+PrintTenuringDistribution" in line:
-                        details['print_tenuring_distribution'] = True
+                elif "-XX:+PrintGCDateStamps" in segment:
+                    details['print_gc_date_stamps'] = True
 
-                    elif "-XX:SurvivorRatio=" in line:
-                        details['survivor_ratio'] = line.split("SurvivorRatio=")[1]
+                elif "-XX:+PrintGCDetails" in segment:
+                    details['print_gc_details'] = True
 
-                    elif "-XX:+UseConcMarkSweepGC" in line:
-                        details['use_cms'] = True
+                elif "-XX:+PrintTenuringDistribution" in segment:
+                    details['print_tenuring_distribution'] = True
 
-                    elif "-XX:+UseParNewGC" in line:
-                        details['use_parnew'] = True
+                elif "-XX:SurvivorRatio=" in segment:
+                    details['survivor_ratio'] = line.split("SurvivorRatio=")[1]
 
-            if 'java_path' not in details:
-                details['java_path'] = ''.join(liverun("which java")).strip().replace("/java", "")
+                elif "-XX:+UseConcMarkSweepGC" in segment:
+                    details['use_cms'] = True
+
+                elif "-XX:+UseParNewGC" in segment:
+                    details['use_parnew'] = True
 
         with open("/proc/uptime".format(pid), "r") as _file:
             for line in _file:
