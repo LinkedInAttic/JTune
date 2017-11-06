@@ -4,7 +4,7 @@
 """
 @author      Eric Bullen <ebullen@linkedin.com>
 @application jtune.py
-@version     2.0.3
+@version     3.0.0
 @abstract    This tool will give detailed information about the running
              JVM in real-time. It produces useful information that can
              further assist the user in debugging and optimization.
@@ -459,7 +459,7 @@ def reduce_k(size=None, precision=2, short_form=True, _place_holder=0):
             return "{0} {1}".format(value, iec_scale[_place_holder])
 
 
-def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=None, replay_file=None, optimized_for_ygcs_rate=None):
+def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=None, optimized_for_ygcs_rate=None):
     """The meat-and-potatoes of this tool. This takes in numerous data structures,
     and prints out a report of the analysis of them."""
 
@@ -1676,7 +1676,7 @@ def _get_widths(jstat_data=None, short_fields=False):
     return widths
 
 
-def _at_exit(raw_gc_log=None, jmap_data=None, jstat_data=None, proc_details=None, replay_file=None, optimized_for_ygcs_rate=None):
+def _at_exit(raw_gc_log=None, jmap_data=None, jstat_data=None, proc_details=None, optimized_for_ygcs_rate=None):
     """The exit function that is called when the user presses ctrl-c, or when it exits after X number
     of jstat iterations. It calls various functions to display useful information to the end-user."""
 
@@ -1728,7 +1728,7 @@ def _at_exit(raw_gc_log=None, jmap_data=None, jstat_data=None, proc_details=None
         if in_stanza:
             entry.append(line)
 
-    _run_analysis(gc_data, jmap_data, jstat_data, proc_details, replay_file, optimized_for_ygcs_rate)
+    _run_analysis(gc_data, jmap_data, jstat_data, proc_details, optimized_for_ygcs_rate)
 
 
 def get_rotated_log_file(gc_log_file):
@@ -1808,25 +1808,18 @@ def main():
     else:
         group = parser.add_mutually_exclusive_group(required=True)
 
-    group.add_argument('-r', '--replay', dest="replay_file", const="/tmp/jtune_data-{0}.bin.bz2".format(user), help="Replay a previously saved default is /tmp/jtune_data-{0}.bin.bz2 file".format(user), metavar="FILE", nargs="?", default=None)
     group.add_argument('-p', '--pid', help='Which java PID should I attach to', type=int)
     group.add_argument('--gc-stdin', help='Read GC log data from stdin', action="store_true")
 
     cmd_args = parser.parse_args()
 
-    replay_file = cmd_args.replay_file
     raw_gc_log_data = list()
     jmap_data = list()
     jstat_data = list()
     proc_details = list()
 
-    if DEBUG:
-        # Need to define it here for Pycharm (so I don't
-        # have to set up arguments).
-        replay_file = "/tmp/some_file"
-
-    if not (cmd_args.pid or cmd_args.gc_stdin) and not os.path.isfile(replay_file):
-        logger.error("The replay file '{0}' does not exist, or is not a file.".format(replay_file))
+    if not (cmd_args.pid or cmd_args.gc_stdin):
+        logger.error("Please specify -p (pid) or --gc-stdin")
         sys.exit(1)
 
     # A ygc of 1/min
@@ -1853,82 +1846,72 @@ def main():
         logger.error("You must specify -s, -y, or -c arguments for this option to work.")
         sys.exit(1)
 
-    if replay_file:
+    if not cmd_args.gc_stdin:
         try:
-            with open(replay_file, "rb") as _file:
-                proc_details, jstat_data, display.display_output, jmap_data, raw_gc_log_data = pickle.loads(_file.read().decode('bz2'))
-        except (ValueError, IOError):
-            logger.error("I was not able to read the replay file. Exiting.")
+            config_error = False
+            proc_details = get_proc_info(cmd_args.pid)
+
+            java_path, proc_uptime = proc_details['java_path'], proc_details['proc_uptime_seconds']
+
+            if proc_details.get("min_heap_size", 0) != proc_details.get("max_heap_size", 1):
+                config_error = True
+                logger.error(
+                    "It looks like either you didn't specify your min and max heap size (-Xms & -Xmx respectively), or they are set to two different sizes. They need to be set to the same for jtune.py to work properly.")
+
+            if not proc_details.get("print_gc_date_stamps", False):
+                config_error = True
+                logger.error("You need to include the '-XX:PrintGCDateStamps' option to the JVM for JTune to work correctly.")
+
+            if not proc_details.get("print_gc_details", False):
+                config_error = True
+                logger.error("You need to include the '-XX:PrintGCDetails' option to the JVM for JTune to work correctly.")
+
+            if not proc_details.get("print_tenuring_distribution", False):
+                config_error = True
+                logger.error("You need to include the '-XX:+PrintTenuringDistribution' option to the JVM for JTune to work correctly.")
+
+            if not proc_details.get("survivor_ratio", False):
+                logger.warning("You probably want to include the '-XX:SurvivorRatio=<num>' option to the JVM for JTune to work correctly.")
+
+            if not proc_details.get("use_cms", False):
+                config_error = True
+                logger.error("You need to include the '-XX:+UseConcMarkSweepGC' option to the JVM for JTune to work correctly.")
+
+            if not proc_details.get("use_parnew", False):
+                config_error = True
+                logger.error("You need to include the '-XX:+UseParNewGC' option to the JVM for JTune to work correctly.")
+
+            if config_error:
+                logger.error("Exiting.")
+                sys.exit(1)
+
+        except (TypeError, KeyError):
+            logger.error("I was not able to get the process data for pid {0}".format(cmd_args.pid))
             sys.exit(1)
+
+        ###########################################
+        # Start the gc log watching in a subprocess
+        back_secs = 300
+        gc_log_file = get_gc_log_file(proc_details)
+
+        if not gc_log_file:
+            logger.error("\n".join(textwrap.wrap("I was not able to find a GC log for this process. Is the instance up?", display.textwrap_offset)))
+            sys.exit(1)
+
+        ####################################################
+        # Get the file offset before starting jstat, so
+        # I can use it after jstat runs to read the log file
+        gc_log_file_pos = os.stat(gc_log_file).st_size
+
+        jmap_data = get_jmap_data(cmd_args.pid, proc_details)
+
+        if cmd_args.no_jstat_output:
+            jstat_data = dict()
         else:
-            print "* Note: Used cached data found in {0}.".format(replay_file)
-    else:
-        if not cmd_args.gc_stdin:
-            try:
-                config_error = False
-                proc_details = get_proc_info(cmd_args.pid)
+            jstat_data = run_jstat(cmd_args.pid, java_path, cmd_args.no_jstat_output, cmd_args.fgc_stop_count, cmd_args.stop_count, cmd_args.ygc_stop_count)
 
-                java_path, proc_uptime = proc_details['java_path'], proc_details['proc_uptime_seconds']
-
-                if proc_details.get("min_heap_size", 0) != proc_details.get("max_heap_size", 1):
-                    config_error = True
-                    logger.error(
-                        "It looks like either you didn't specify your min and max heap size (-Xms & -Xmx respectively), or they are set to two different sizes. They need to be set to the same for jtune.py to work properly.")
-
-                if not proc_details.get("print_gc_date_stamps", False):
-                    config_error = True
-                    logger.error("You need to include the '-XX:PrintGCDateStamps' option to the JVM for JTune to work correctly.")
-
-                if not proc_details.get("print_gc_details", False):
-                    config_error = True
-                    logger.error("You need to include the '-XX:PrintGCDetails' option to the JVM for JTune to work correctly.")
-
-                if not proc_details.get("print_tenuring_distribution", False):
-                    config_error = True
-                    logger.error("You need to include the '-XX:+PrintTenuringDistribution' option to the JVM for JTune to work correctly.")
-
-                if not proc_details.get("survivor_ratio", False):
-                    logger.warning("You probably want to include the '-XX:SurvivorRatio=<num>' option to the JVM for JTune to work correctly.")
-
-                if not proc_details.get("use_cms", False):
-                    config_error = True
-                    logger.error("You need to include the '-XX:+UseConcMarkSweepGC' option to the JVM for JTune to work correctly.")
-
-                if not proc_details.get("use_parnew", False):
-                    config_error = True
-                    logger.error("You need to include the '-XX:+UseParNewGC' option to the JVM for JTune to work correctly.")
-
-                if config_error:
-                    logger.error("Exiting.")
-                    sys.exit(1)
-
-            except (TypeError, KeyError):
-                logger.error("I was not able to get the process data for pid {0}".format(cmd_args.pid))
-                sys.exit(1)
-
-            ###########################################
-            # Start the gc log watching in a subprocess
-            back_secs = 300
-            gc_log_file = get_gc_log_file(proc_details)
-
-            if not gc_log_file:
-                logger.error("\n".join(textwrap.wrap("I was not able to find a GC log for this process. Is the instance up?", display.textwrap_offset)))
-                sys.exit(1)
-
-            ####################################################
-            # Get the file offset before starting jstat, so
-            # I can use it after jstat runs to read the log file
-            gc_log_file_pos = os.stat(gc_log_file).st_size
-
-            jmap_data = get_jmap_data(cmd_args.pid, proc_details)
-
-            if cmd_args.no_jstat_output:
-                jstat_data = dict()
-            else:
-                jstat_data = run_jstat(cmd_args.pid, java_path, cmd_args.no_jstat_output, cmd_args.fgc_stop_count, cmd_args.stop_count, cmd_args.ygc_stop_count)
-
-            # This basically hits after the user ctrl-c's
-            raw_gc_log_data = process_gclog(gc_log_file, gc_log_file_pos)
+        # This basically hits after the user ctrl-c's
+        raw_gc_log_data = process_gclog(gc_log_file, gc_log_file_pos)
 
         #####################################################
         # Keep the last dump of data in case there's an issue
@@ -1939,10 +1922,7 @@ def main():
         except IOError as msg:
             logger.error("\n".join(textwrap.wrap("I was not able to write to /tmp/jtune_data-{0}.bin.bz2 (no saving of state): {1}".format(user, msg), display.textwrap_offset)))
 
-    if DEBUG:
-        _at_exit(raw_gc_log_data, jmap_data, jstat_data, proc_details, replay_file, optimized_for_ygcs_rate)
-    else:
-        atexit.register(_at_exit, raw_gc_log_data, jmap_data, jstat_data, proc_details, replay_file, optimized_for_ygcs_rate)
+    atexit.register(_at_exit, raw_gc_log_data, jmap_data, jstat_data, proc_details, optimized_for_ygcs_rate)
 
 
 if __name__ == '__main__':
