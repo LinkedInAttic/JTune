@@ -53,14 +53,10 @@ There are additional options that you can take advantage of. See below output:
                             How many iterations of jstat to run before stopping
       -n, --no-jstat-output
                             Do not show jstat output - only print summary
-      -r [FILE], --replay [FILE]
-                            Replay a previously saved default is
-                            /tmp/jtune_data-{user}.bin.bz2 file
       -p PID, --pid PID     Which java PID should I attach to
 
 * You can also have it stop after X number of YGCs, FGCs, or jstat iterations (-y, -s, -c respectively). If you want it to make tuning suggestions, you'll want to let it run for at least 3 FGCs (-s <#>) before exiting.
 * There may be cases where you want jtune to optimize for a given number of CMS GCs, you can do this with the '-o #' parameter. Right now you can specify a range between 0 and 11 which corresponds to the 180 CMS/min to 1 CMS/min respectively. In most cases you can leave it as default. The way this parameter is used will likely change.
-* There may be cases where you see something odd in the suggestions, or want to save the data structures jtune used for further analysis. By default jtune saves this data in /tmp/jtune_data-{user}.bin.bz2. JTune can replay this file by passing it a -r \<path\> parameter.
 
 Command Output
 --------------
