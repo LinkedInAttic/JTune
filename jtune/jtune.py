@@ -26,7 +26,6 @@ import locale
 import logging
 import math
 import os
-import pickle
 import re
 import resource
 import shlex
@@ -1912,15 +1911,6 @@ def main():
 
         # This basically hits after the user ctrl-c's
         raw_gc_log_data = process_gclog(gc_log_file, gc_log_file_pos)
-
-        #####################################################
-        # Keep the last dump of data in case there's an issue
-        try:
-            with open("/tmp/jtune_data-{0}.bin.bz2".format(user), "wb") as _file:
-                os.chmod("/tmp/jtune_data-{0}.bin.bz2".format(user), 0666)
-                _file.write(pickle.dumps((proc_details, jstat_data, display.display_output, jmap_data, raw_gc_log_data), pickle.HIGHEST_PROTOCOL).encode('bz2'))
-        except IOError as msg:
-            logger.error("\n".join(textwrap.wrap("I was not able to write to /tmp/jtune_data-{0}.bin.bz2 (no saving of state): {1}".format(user, msg), display.textwrap_offset)))
 
     atexit.register(_at_exit, raw_gc_log_data, jmap_data, jstat_data, proc_details, optimized_for_ygcs_rate)
 
