@@ -12,7 +12,7 @@ except IOError:
 
 setup(
     name='jtune',
-    version='3.0.0',
+    version='4.0.0',
     description=description,
     long_description=description,
     url='https://github.com/linkedin/JTune',
@@ -33,7 +33,8 @@ setup(
         'Environment :: Console',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ]
 )
