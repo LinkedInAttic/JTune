@@ -1,9 +1,11 @@
 # JTune - a high precision Java CMS optimizer
 
-Note
-----
+
+NOTE
+-------
 
 Version 4.0 removes Python 2.0 compat and is now Py3+ only. There are no feature additions. If you're running under a Python 2 environment, you must run a version of JTune prior to v4.
+
 Overview
 --------
 
