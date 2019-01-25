@@ -1,10 +1,10 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
 @author      Eric Bullen <ebullen@linkedin.com>
 @application jtune.py
-@version     3.0.0
+@version     4.0.0
 @abstract    This tool will give detailed information about the running
              JVM in real-time. It produces useful information that can
              further assist the user in debugging and optimization.
@@ -35,7 +35,7 @@ import sys
 import textwrap
 import time
 from decimal import Decimal
-from itertools import izip_longest, izip, count
+from itertools import zip_longest, count
 import argparse
 import multiprocessing as mp
 
@@ -78,9 +78,9 @@ class Display(object):
             message = message[:-1]
 
         if keep_newline:
-            print message
+            print(message)
         else:
-            print message,
+            print(message, end=" ")
 
     def add(self, message):
         """Append message to output items."""
@@ -363,9 +363,9 @@ def median(values=None):
         result = 0
         # raise ValueError, "I can't find the median of an empty list."
     elif not length % 2:
-        result = (sorts[(length / 2)] + sorts[(length / 2) - 1]) / 2.0
+        result = (sorts[(length // 2)] + sorts[(length // 2) - 1]) / 2.0
     else:
-        result = sorts[length / 2]
+        result = sorts[length // 2]
 
     return result
 
@@ -399,7 +399,7 @@ def stdev(values=None):
     """
 
     values_mean = mean(values)
-    variance = map(lambda x: math.pow(Decimal(str(x)) - values_mean, 2), values)
+    variance = [math.pow(Decimal(str(x)) - values_mean, 2) for x in values]
 
     return math.sqrt(mean(variance, len(variance) - 1))
 
@@ -520,7 +520,6 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=No
     survivor_info = dict()
     young_gc_count_delta = len([record.is_stw_gc for record in gc_data if not record.is_stw_gc])
     full_gc_count_delta = len([record.is_stw_gc for record in gc_data if record.is_stw_gc])
-    jvm_uptime = gc_data[-1].jvm_running_time
     sample_gc_time = sum(record.total_gc_time for record in gc_data)
     sample_gc_load = (sample_gc_time / Decimal(str(sample_time_secs))) * 100
 
@@ -657,7 +656,7 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=No
 
     cuml_pct = 1
     death_ages = list()
-    for survivor_num, pct_list in enumerate(izip_longest(*gc_survivor_death_rates, fillvalue=0), 1):
+    for survivor_num, pct_list in enumerate(zip_longest(*gc_survivor_death_rates, fillvalue=0), 1):
         min_pct = min(pct_list)
         mean_pct = mean(pct_list)
         max_pct = max(pct_list)
@@ -724,13 +723,13 @@ def _run_analysis(gc_data=None, jmap_data=None, jstat_data=None, proc_details=No
     display.render("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
     if jmap_data:
-        for k, v in jmap_data.iteritems():
+        for k, v in jmap_data.items():
             if "Size" in k:
                 v = reduce_k(v / 1024)
 
             display.render("{0:>17}: {1}\n".format(k, v))
     else:
-        for k, v in jvm_mem_cfg.iteritems():
+        for k, v in jvm_mem_cfg.items():
             display.render("{0:>17}: {1}\n".format(k, reduce_k(v / 1024)))
 
     display.render("\n")
@@ -961,10 +960,10 @@ def _show_recommendations(death_ages=None, young_gc_times=None, full_gc_times=No
     # This is tricky. I need to find the first record where the previous og size is bigger than
     # the current. This identifies when the first CMS runs, and from there, I can find the minimum
 
-    normal_gc_data = filter(lambda x: x.og_used > 0, gc_data)
+    normal_gc_data = [x for x in gc_data if x.og_used > 0]
 
     try:
-        record_num = [record_num for record_num, first_gc, second_gc in izip(count(), normal_gc_data, normal_gc_data[1:]) if first_gc.og_used > second_gc.og_used][0]
+        record_num = [record_num for record_num, first_gc, second_gc in zip(count(), normal_gc_data, normal_gc_data[1:]) if first_gc.og_used > second_gc.og_used][0]
     except IndexError:
         live_data_size_bytes = None
     else:
@@ -1080,8 +1079,7 @@ def _show_recommendations(death_ages=None, young_gc_times=None, full_gc_times=No
         textwrap.wrap("- Looking at the worst (max) survivor percentages for all the ages, it looks like a TenuringThreshold of {0:0.0f} is ideal.".format(max_tenuring_age), display.textwrap_offset)) + "\n")
     display.render("\n".join(textwrap.wrap(
         "- The survivor size should be 2x the max size for tenuring threshold of {0:0.0f} given above. Given this, the survivor size of {1:0.0f}M is ideal.".format(max_tenuring_age,
-                                                                                                                                                                    max_tenuring_size / 1024 / 1024,
-                                                                                                                                                                    display.textwrap_offset))) + "\n")
+                                                                                                                                                                    max_tenuring_size / 1024 / 1024), display.textwrap_offset)) + "\n")
     display.render("\n".join(textwrap.wrap("- To ensure enough survivor space is allocated, a survivor ratio of {0:0.0f} should be used.".format(survivor_ratio), display.textwrap_offset)) + "\n")
 
     #################################################
@@ -1162,6 +1160,7 @@ def get_proc_info(pid=None):
         details['gc_file_rotation'] = False
 
         for line in liverun("readlink /proc/{0}/cwd".format(pid)):
+            line = line.decode()
             details['proc_cwd'] = line.strip()
 
         with open("/proc/{0}/cmdline".format(pid), "r") as _file:
@@ -1208,7 +1207,7 @@ def get_proc_info(pid=None):
             if 'java_path' not in details:
                 details['java_path'] = ''.join(liverun("which java")).strip().replace("/java", "")
 
-        with open("/proc/uptime".format(pid), "r") as _file:
+        with open("/proc/uptime", "r") as _file:
             for line in _file:
                 details['sys_uptime_seconds'] = Decimal(line.split()[0])
                 break
@@ -1234,6 +1233,7 @@ def get_proc_info(pid=None):
                 break
 
         for line in liverun("{0}/java -version".format(details['java_path'])):
+            line = line.decode()
             if "java version" in line:
                 line = line.strip().replace("\"", "")
 
@@ -1268,12 +1268,12 @@ def process_gclog(log_file=None, log_file_pos=0):
     try:
         line_num = 0
 
-        print ""
-        print "* Reading gc.log file...",
+        print()
+        print("* Reading gc.log file...", end=" ")
 
         current_size = os.stat(log_file).st_size
         if current_size < log_file_pos:
-            print "log file was truncated/rotated; reading from the start",
+            print("log file was truncated/rotated; reading from the start", end=" ")
             log_file_pos = 0
 
         start_time = datetime.datetime.now()
@@ -1287,7 +1287,7 @@ def process_gclog(log_file=None, log_file_pos=0):
 
         elapsed_time = sec_diff(start_time, datetime.datetime.now())
 
-        print "done. Scanned {0} lines in {1:0.4f} seconds.".format(line_num, elapsed_time)
+        print("done. Scanned {0} lines in {1:0.4f} seconds.".format(line_num, elapsed_time))
     except IOError:
         # I don't want/need to check the exception. If it fails, it fails.
         pass
@@ -1306,6 +1306,7 @@ def _run_jmap(pid=None, procdetails=None):
 
     try:
         for line in liverun("{0}/jmap -J-Xmx128M -heap {1}".format(java_path, pid)):
+            line = line.decode()
             field = line.split()
 
             if "MinHeapFreeRatio" in line:
@@ -1327,7 +1328,7 @@ def _run_jmap(pid=None, procdetails=None):
                 # JMap seems to be scaled wrong. Comparing it to jstat, it shows that
                 # it's off by about 1000 (1024). There's a bug in Java6 where this is in KB
                 # not bytes like the others. Appears to be fixed in Java8 (maybe Java7, too)
-                java_int = procdetails['java_ver_int']
+                java_int = int(procdetails['java_ver_int'])
 
                 if java_int < 8:
                     jmap_data['OldSize'] = int(field[2]) * 1024
@@ -1379,7 +1380,6 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
 
     # This is how the columns will be displayed in order.
     ordered_fields = ["EC", "EP", "EU", "S0C/S1C", "S0C", "S1C", "S0U", "S1U", "OC", "OP", "OU", "MC", "MU", "PC", "PU", "YGC", "YGCD", "FGC", "FGCD"]
-    # ordered_fields = ["EC", "EP", "EU", "S0C/S1C", "S0C", "S1C", "S0U", "S1U", "OC", "OP", "OU", "MC", "MU", "PC", "PU", "YGC", "YGCT", "FGC", "FGCT", "GCT"]
 
     displayed_output = False
     combined_survivors = False
@@ -1410,6 +1410,7 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
 
     try:
         for line in liverun(cmd):
+            line = line.decode()
             timestamp = datetime.datetime.now()
             line = line.strip()
 
@@ -1489,7 +1490,6 @@ def run_jstat(pid=None, java_path=None, no_jstat_output=None, fgc_stop_count=Non
                 first_ygc_ct = jstat_data['YGC'][0]
                 prev_fgc_ct = jstat_data['FGC'][-2]
                 last_fgc_ct = jstat_data['FGC'][-1]
-                prev_ygc_ct = jstat_data['YGC'][-2]
                 last_ygc_ct = jstat_data['YGC'][-1]
                 total_fgcs = last_fgc_ct - first_fgc_ct
                 total_ygcs = last_ygc_ct - first_ygc_ct
@@ -1635,7 +1635,7 @@ def _get_widths(jstat_data=None, short_fields=False):
     widths = dict()
 
     for field in jstat_data:
-        max_width = max(map(len, map(str, jstat_data[field])))
+        max_width = max(list(map(len, list(map(str, jstat_data[field])))))
         field_width = len(field)
 
         if field_width > max_width:
@@ -1821,9 +1821,6 @@ def main():
         logger.error("Please specify -p (pid) or --gc-stdin")
         sys.exit(1)
 
-    # A ygc of 1/min
-    ygc_lower_rate_per_min = 1
-
     # A ygc of 180/min (3/sec)
     ygc_upper_rate_per_min = 180
 
@@ -1850,7 +1847,7 @@ def main():
             config_error = False
             proc_details = get_proc_info(cmd_args.pid)
 
-            java_path, proc_uptime = proc_details['java_path'], proc_details['proc_uptime_seconds']
+            java_path = proc_details['java_path']
 
             if proc_details.get("min_heap_size", 0) != proc_details.get("max_heap_size", 1):
                 config_error = True
@@ -1890,7 +1887,6 @@ def main():
 
         ###########################################
         # Start the gc log watching in a subprocess
-        back_secs = 300
         gc_log_file = get_gc_log_file(proc_details)
 
         if not gc_log_file:
