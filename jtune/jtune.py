@@ -399,7 +399,6 @@ def stdev(values=None):
     """
 
     values_mean = mean(values)
-    # variance = map(lambda x: math.pow(Decimal(str(x)) - values_mean, 2), values)
     variance = [math.pow(Decimal(str(x)) - values_mean, 2) for x in values]
 
     return math.sqrt(mean(variance, len(variance) - 1))
@@ -1844,41 +1843,46 @@ def main():
         sys.exit(1)
 
     if not cmd_args.gc_stdin:
-        config_error = False
-        proc_details = get_proc_info(cmd_args.pid)
+        try:
+            config_error = False
+            proc_details = get_proc_info(cmd_args.pid)
 
-        java_path = proc_details['java_path']
+            java_path = proc_details['java_path']
 
-        if proc_details.get("min_heap_size", 0) != proc_details.get("max_heap_size", 1):
-            config_error = True
-            logger.error(
-                "It looks like either you didn't specify your min and max heap size (-Xms & -Xmx respectively), or they are set to two different sizes. They need to be set to the same for jtune.py to work properly.")
+            if proc_details.get("min_heap_size", 0) != proc_details.get("max_heap_size", 1):
+                config_error = True
+                logger.error(
+                    "It looks like either you didn't specify your min and max heap size (-Xms & -Xmx respectively), or they are set to two different sizes. They need to be set to the same for jtune.py to work properly.")
 
-        if not proc_details.get("print_gc_date_stamps", False):
-            config_error = True
-            logger.error("You need to include the '-XX:PrintGCDateStamps' option to the JVM for JTune to work correctly.")
+            if not proc_details.get("print_gc_date_stamps", False):
+                config_error = True
+                logger.error("You need to include the '-XX:PrintGCDateStamps' option to the JVM for JTune to work correctly.")
 
-        if not proc_details.get("print_gc_details", False):
-            config_error = True
-            logger.error("You need to include the '-XX:PrintGCDetails' option to the JVM for JTune to work correctly.")
+            if not proc_details.get("print_gc_details", False):
+                config_error = True
+                logger.error("You need to include the '-XX:PrintGCDetails' option to the JVM for JTune to work correctly.")
 
-        if not proc_details.get("print_tenuring_distribution", False):
-            config_error = True
-            logger.error("You need to include the '-XX:+PrintTenuringDistribution' option to the JVM for JTune to work correctly.")
+            if not proc_details.get("print_tenuring_distribution", False):
+                config_error = True
+                logger.error("You need to include the '-XX:+PrintTenuringDistribution' option to the JVM for JTune to work correctly.")
 
-        if not proc_details.get("survivor_ratio", False):
-            logger.warning("You probably want to include the '-XX:SurvivorRatio=<num>' option to the JVM for JTune to work correctly.")
+            if not proc_details.get("survivor_ratio", False):
+                logger.warning("You probably want to include the '-XX:SurvivorRatio=<num>' option to the JVM for JTune to work correctly.")
 
-        if not proc_details.get("use_cms", False):
-            config_error = True
-            logger.error("You need to include the '-XX:+UseConcMarkSweepGC' option to the JVM for JTune to work correctly.")
+            if not proc_details.get("use_cms", False):
+                config_error = True
+                logger.error("You need to include the '-XX:+UseConcMarkSweepGC' option to the JVM for JTune to work correctly.")
 
-        if not proc_details.get("use_parnew", False):
-            config_error = True
-            logger.error("You need to include the '-XX:+UseParNewGC' option to the JVM for JTune to work correctly.")
+            if not proc_details.get("use_parnew", False):
+                config_error = True
+                logger.error("You need to include the '-XX:+UseParNewGC' option to the JVM for JTune to work correctly.")
 
-        if config_error:
-            logger.error("Exiting.")
+            if config_error:
+                logger.error("Exiting.")
+                sys.exit(1)
+
+        except (TypeError, KeyError):
+            logger.error("I was not able to get the process data for pid {0}".format(cmd_args.pid))
             sys.exit(1)
 
         ###########################################
