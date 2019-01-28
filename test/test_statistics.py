@@ -1,5 +1,3 @@
-import pytest
-
 from decimal import Decimal
 
 from jtune.jtune import median

@@ -12,7 +12,7 @@ except IOError:
 
 setup(
     name='jtune',
-    version='4.0.0',
+    version='4.0.1',
     description=description,
     long_description=description,
     url='https://github.com/linkedin/JTune',
@@ -20,9 +20,6 @@ setup(
     author_email='jeward@linkedin.com',
     license='Apache',
     packages=['jtune'],
-    install_requires=[
-        'argparse==1.4.0',
-    ],
     entry_points={
         'console_scripts': [
             'jtune = jtune.jtune:main',
@@ -33,7 +30,10 @@ setup(
         'Environment :: Console',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
+        'Programming Language :: Python :: 3 :: Only',
+        'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ]
